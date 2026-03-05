@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
+import 'register_screen.dart';
 import '../constants.dart';
 import '../widgets/common_widgets.dart';
 
@@ -66,7 +67,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               Center(
                 child: Text('Universitet Kutubxona Tizimi',
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade500)),
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade500)),
               ),
               const SizedBox(height: 48),
 
@@ -116,10 +117,23 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 24),
               Center(
-                child: Text(
-                  'Kirish uchun kutubxonachiga murojaat qiling',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-                  textAlign: TextAlign.center,
+                child: GestureDetector(
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                  ),
+                  child: RichText(
+                    text: TextSpan(
+                      text: 'Hisobingiz yo\'qmi? ',
+                      style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+                      children: const [
+                        TextSpan(
+                          text: 'Ro\'yhatdan o\'tish',
+                          style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.w800),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
 
@@ -137,7 +151,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   GestureDetector(
                     onTap: app.toggleDark,
                     child: Icon(isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                      color: AppColors.accent),
+                        color: AppColors.accent),
                   ),
                 ],
               ),
@@ -160,7 +174,7 @@ class _LoginScreenState extends State<LoginScreen> {
           border: Border.all(color: active ? AppColors.accent : Colors.grey.shade400),
         ),
         child: Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
-          color: active ? Colors.black : Colors.grey.shade400)),
+            color: active ? Colors.black : Colors.grey.shade400)),
       ),
     );
   }

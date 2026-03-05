@@ -43,7 +43,7 @@ class UserModel {
       id: doc.id,
       name: d['name'] ?? '',
       email: d['email'] ?? '',
-      phone: d['phone'] ?? '',
+      phone: d['phone']?.toString() ?? '',
       role: d['role'] ?? 'student',
       group: d['group'],
       faculty: d['faculty'],

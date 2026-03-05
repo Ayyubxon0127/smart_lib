@@ -78,6 +78,48 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> register({
+    required String name,
+    required String email,
+    required String phone,
+    required String password,
+    required String degree,
+    String? faculty,
+    String? direction,
+    String? group,
+  }) async {
+    _loading = true; _error = null; notifyListeners();
+    try {
+      final cred = await _auth.createUserWithEmailAndPassword(email: email, password: password);
+      final now = DateTime.now();
+      final user = UserModel(
+        id:        cred.user!.uid,
+        name:      name,
+        email:     email,
+        phone:     phone,
+        role:      'student',
+        degree:    degree,
+        faculty:   faculty,
+        direction: direction,
+        group:     group,
+        status:    'active',
+        visits:    0,
+        booksRead: 0,
+        createdAt: now,
+      );
+      await _db.collection('users').doc(cred.user!.uid).set(user.toFirestore());
+      _currentUser = user;
+      _role = 'student';
+      await _fetchAll();
+      _loading = false; notifyListeners();
+      return true;
+    } on FirebaseAuthException catch (e) {
+      _error = e.message;
+      _loading = false; notifyListeners();
+      return false;
+    }
+  }
+
   Future<void> logout() async {
     await _auth.signOut();
     _currentUser = null; _role = '';

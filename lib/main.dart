@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'firebase_options.dart';
 import 'providers/app_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/student/student_main.dart';
@@ -10,7 +11,9 @@ import 'screens/librarian/librarian_main.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const SmartKutubxonaApp());
 }
 
@@ -34,8 +37,8 @@ class SmartKutubxonaApp extends StatelessWidget {
             home: app.currentUser == null
                 ? const LoginScreen()
                 : app.role == 'librarian'
-                    ? const LibrarianMain()
-                    : const StudentMain(),
+                ? const LibrarianMain()
+                : const StudentMain(),
           );
         },
       ),

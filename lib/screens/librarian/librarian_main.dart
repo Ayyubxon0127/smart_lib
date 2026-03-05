@@ -176,22 +176,23 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppCard(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Container(
-            width: 32, height: 32,
+            width: 28, height: 28,
             decoration: BoxDecoration(
-                color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
-            child: Icon(icon, color: color, size: 16),
+                color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+            child: Icon(icon, color: color, size: 14),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-              Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+              Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+              Text(label, style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
+                  overflow: TextOverflow.ellipsis, maxLines: 2),
             ],
           ),
         ],
@@ -340,12 +341,12 @@ class _BooksScreenState extends State<_BooksScreen> {
           Expanded(
             child: filtered.isEmpty
                 ? const Center(
-                    child: Text('Kitob topilmadi', style: TextStyle(color: Colors.grey)))
+                child: Text('Kitob topilmadi', style: TextStyle(color: Colors.grey)))
                 : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: filtered.length,
-                    itemBuilder: (_, i) => _BookTile(book: filtered[i]),
-                  ),
+              padding: const EdgeInsets.all(16),
+              itemCount: filtered.length,
+              itemBuilder: (_, i) => _BookTile(book: filtered[i]),
+            ),
           ),
         ],
       ),
@@ -676,10 +677,10 @@ class _ReservationsScreenState extends State<_ReservationsScreen> {
             child: filtered.isEmpty
                 ? const Center(child: Text('Bron topilmadi', style: TextStyle(color: Colors.grey)))
                 : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: filtered.length,
-                    itemBuilder: (_, i) => _ReservationTile(reservation: filtered[i]),
-                  ),
+              padding: const EdgeInsets.all(16),
+              itemCount: filtered.length,
+              itemBuilder: (_, i) => _ReservationTile(reservation: filtered[i]),
+            ),
           ),
         ],
       ),
@@ -854,44 +855,44 @@ class _AnnouncementsScreen extends StatelessWidget {
       body: app.announcements.isEmpty
           ? const Center(child: Text("Hali e'lon yo'q", style: TextStyle(color: Colors.grey)))
           : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: app.announcements.length,
-              itemBuilder: (_, i) {
-                final a     = app.announcements[i];
-                final color = typeColors[a.type] ?? AppColors.blue;
-                final label = typeLabels[a.type] ?? "Ma'lumot";
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: AppCard(
-                    borderColor: a.important ? AppColors.accent.withOpacity(0.5) : null,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(children: [
-                          StatusBadge(label: label, color: color),
-                          if (a.important) ...[
-                            const SizedBox(width: 6),
-                            const StatusBadge(label: 'Muhim', color: AppColors.red),
-                          ],
-                          const Spacer(),
-                          Text('${a.date.day}.${a.date.month}.${a.date.year}',
-                              style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                        ]),
-                        const SizedBox(height: 10),
-                        Text(a.title,
-                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
-                        const SizedBox(height: 6),
-                        Text(a.content,
-                            style: TextStyle(fontSize: 13, color: Colors.grey.shade600, height: 1.5)),
-                        const SizedBox(height: 8),
-                        Text('${a.author}',
-                            style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                      ],
-                    ),
-                  ),
-                );
-              },
+        padding: const EdgeInsets.all(16),
+        itemCount: app.announcements.length,
+        itemBuilder: (_, i) {
+          final a     = app.announcements[i];
+          final color = typeColors[a.type] ?? AppColors.blue;
+          final label = typeLabels[a.type] ?? "Ma'lumot";
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: AppCard(
+              borderColor: a.important ? AppColors.accent.withOpacity(0.5) : null,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    StatusBadge(label: label, color: color),
+                    if (a.important) ...[
+                      const SizedBox(width: 6),
+                      const StatusBadge(label: 'Muhim', color: AppColors.red),
+                    ],
+                    const Spacer(),
+                    Text('${a.date.day}.${a.date.month}.${a.date.year}',
+                        style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                  ]),
+                  const SizedBox(height: 10),
+                  Text(a.title,
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 6),
+                  Text(a.content,
+                      style: TextStyle(fontSize: 13, color: Colors.grey.shade600, height: 1.5)),
+                  const SizedBox(height: 8),
+                  Text('${a.author}',
+                      style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                ],
+              ),
             ),
+          );
+        },
+      ),
     );
   }
 }
