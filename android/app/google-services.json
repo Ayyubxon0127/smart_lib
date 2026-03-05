@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "778487701783",
+    "project_id": "smart-kutubxona",
+    "storage_bucket": "smart-kutubxona.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:778487701783:android:fc47562680ee436b075752",
+        "android_client_info": {
+          "package_name": "com.example.smart_kutubxona"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDfYweFk42JbVEUWnTeyveiQS3OpUtdVRU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:778487701783:android:45d50204c69cbc86075752",
+        "android_client_info": {
+          "package_name": "com.university.smartkutubxona"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDfYweFk42JbVEUWnTeyveiQS3OpUtdVRU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
