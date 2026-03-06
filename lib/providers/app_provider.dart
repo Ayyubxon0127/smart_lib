@@ -8,6 +8,8 @@ import '../models/book_model.dart';
 import '../models/reservation_model.dart';
 import '../models/review_model.dart';
 import '../models/room_model.dart';
+import '../models/notification_model.dart';
+import '../services/notification_service.dart';
 
 class AppProvider extends ChangeNotifier {
   final _auth = FirebaseAuth.instance;
@@ -135,6 +137,142 @@ class AppProvider extends ChangeNotifier {
       fetchSeatBookings(),
       if (_role == 'librarian') fetchStudents(),
     ]);
+    if (_role == 'student') {
+      await _checkExpiredBookings();
+      NotificationService.scheduleAll(
+        reservations: _reservations,
+        books: _books,
+        seatBookings: _seatBookings,
+      );
+    }
+  }
+
+  /// Muddati o'tgan bronlarni (oyna tugagach tasdiqlash qilinmagan) no_show deb belgilaydi
+  Future<void> _checkExpiredBookings() async {
+    if (_currentUser == null) return;
+    final now = DateTime.now();
+    for (final b in _seatBookings) {
+      if (b.status != 'active') continue;
+      final parts = b.startTime.split(':');
+      final startDT = DateTime(b.date.year, b.date.month, b.date.day,
+          int.parse(parts[0]), int.parse(parts[1]));
+      // Oyna: start + 30 daqiqa
+      final windowEnd = startDT.add(const Duration(minutes: 30));
+      if (now.isAfter(windowEnd)) {
+        // Kelgan emas (no-show)
+        await _db.collection('seat_bookings').doc(b.id).update({'status': 'no_show'});
+        await _applyNoShowPenalty(_currentUser!.id);
+      }
+    }
+    await fetchSeatBookings();
+    // Foydalanuvchi ma'lumotlarini yangilash
+    final doc = await _db.collection('users').doc(_currentUser!.id).get();
+    if (doc.exists) _currentUser = UserModel.fromFirestore(doc);
+  }
+
+  Future<void> _applyNoShowPenalty(String userId) async {
+    final doc = await _db.collection('users').doc(userId).get();
+    if (!doc.exists) return;
+    final user = UserModel.fromFirestore(doc);
+    final newCount = user.noShowCount + 1;
+    final banDays = newCount; // 1-chi: 1 kun, 2-chi: 2 kun, ...
+    final banUntil = DateTime.now().add(Duration(days: banDays));
+    await _db.collection('users').doc(userId).update({
+      'noShowCount': newCount,
+      'bookingBanUntil': Timestamp.fromDate(banUntil),
+    });
+    if (userId == _currentUser?.id) {
+      _currentUser = user.copyWith(noShowCount: newCount, bookingBanUntil: banUntil);
+      notifyListeners();
+    }
+  }
+
+  // ── In-app bildirishnomalar ──────────────────────────────────────────────────
+
+  List<AppNotif> computeNotifications() {
+    final notifs = <AppNotif>[];
+    final now = DateTime.now();
+
+    // Kitob qaytarish eslatmalari
+    for (final res in _reservations) {
+      if (res.status != 'active') continue;
+      final bookList = _books.where((b) => b.id == res.bookId);
+      final bookTitle = bookList.isEmpty ? 'Kitob' : bookList.first.title;
+      final daysLeft = res.daysLeft;
+
+      if (daysLeft < 0) {
+        notifs.add(AppNotif(
+          id: '${res.id}_overdue',
+          type: AppNotifType.bookOverdue,
+          title: 'Muddati o\'tdi!',
+          body: '"$bookTitle" kitobini qaytarish muddati ${(-daysLeft)} kun o\'tdi',
+          time: res.dueDate,
+        ));
+      } else if (daysLeft <= 1) {
+        notifs.add(AppNotif(
+          id: '${res.id}_1day',
+          type: AppNotifType.book1Day,
+          title: 'Ertaga qaytarish kerak!',
+          body: '"$bookTitle" kitobini ertaga qaytarmang, jarima bo\'ladi',
+          time: res.dueDate,
+        ));
+      } else if (daysLeft <= 2) {
+        notifs.add(AppNotif(
+          id: '${res.id}_2days',
+          type: AppNotifType.book2Days,
+          title: '2 kun qoldi',
+          body: '"$bookTitle" kitobini qaytarish sanasi yaqinlashmoqda',
+          time: res.dueDate,
+        ));
+      } else if (daysLeft <= 3) {
+        notifs.add(AppNotif(
+          id: '${res.id}_3days',
+          type: AppNotifType.book3Days,
+          title: '3 kun qoldi',
+          body: '"$bookTitle" kitobini 3 kun ichida qaytaring',
+          time: res.dueDate,
+        ));
+      }
+    }
+
+    // Xona bron eslatmalari
+    for (final b in _seatBookings) {
+      if (b.status != 'active') continue;
+      final parts = b.startTime.split(':');
+      final start = DateTime(
+        b.date.year, b.date.month, b.date.day,
+        int.parse(parts[0]), int.parse(parts[1]),
+      );
+      if (start.isBefore(now)) continue;
+
+      final hoursLeft = start.difference(now).inHours;
+
+      if (hoursLeft <= 3) {
+        notifs.add(AppNotif(
+          id: '${b.id}_3hours',
+          type: AppNotifType.seat3Hours,
+          title: 'Dars qilishga tayyormisiz?',
+          body: '${b.roomName} xonasida ${b.startTime}–${b.endTime} da dars vaqtingiz bor. ${hoursLeft > 0 ? "$hoursLeft soat" : "Hozir"} qoldi!',
+          time: start,
+        ));
+      } else if (hoursLeft <= 24) {
+        notifs.add(AppNotif(
+          id: '${b.id}_1hour',
+          type: AppNotifType.seat1Hour,
+          title: 'Bugun dars vaqtingiz bor',
+          body: '${b.roomName} xonasida ${b.startTime}–${b.endTime} da joy bron qilgansiz',
+          time: start,
+        ));
+      }
+    }
+
+    notifs.sort((a, b) {
+      if (a.isUrgent && !b.isUrgent) return -1;
+      if (!a.isUrgent && b.isUrgent) return 1;
+      return a.time.compareTo(b.time);
+    });
+
+    return notifs;
   }
 
   Future<void> fetchBooks() async {
@@ -250,9 +388,10 @@ class AppProvider extends ChangeNotifier {
 
   Future<void> addAnnouncement(AnnouncementModel ann) async {
     final ref = _db.collection('announcements').doc();
+    final imgUrl = ann.imageUrl?.trim().isEmpty == true ? null : ann.imageUrl?.trim();
     final data = AnnouncementModel(
       id: ref.id, title: ann.title, content: ann.content,
-      type: ann.type, important: ann.important, imageUrl: null,
+      type: ann.type, important: ann.important, imageUrl: imgUrl,
       author: _currentUser!.name, date: DateTime.now(),
     );
     await ref.set(data.toFirestore());
@@ -384,7 +523,11 @@ class AppProvider extends ChangeNotifier {
 
   Future<void> addRoom(RoomModel room) async {
     final ref = _db.collection('rooms').doc();
-    final data = RoomModel(id: ref.id, name: room.name, capacity: room.capacity, description: room.description);
+    final data = RoomModel(
+      id: ref.id, name: room.name, capacity: room.capacity,
+      description: room.description, openTime: room.openTime,
+      closeTime: room.closeTime, imageUrls: room.imageUrls,
+    );
     await ref.set(data.toFirestore());
     _rooms.add(data);
     notifyListeners();
@@ -424,7 +567,22 @@ class AppProvider extends ChangeNotifier {
   static bool _sameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
 
+  /// Talabaning bron taqiq muddatini tekshiradi. null = taqiq yo'q.
+  String? checkBookingBan() {
+    final ban = _currentUser?.bookingBanUntil;
+    if (ban == null) return null;
+    final now = DateTime.now();
+    if (now.isBefore(ban)) {
+      final days = ban.difference(now).inDays + 1;
+      return 'Siz $days kun davomida bron qila olmaysiz (qatnashmaganlik uchun)';
+    }
+    return null;
+  }
+
   Future<String?> bookSeat(String roomId, String roomName, DateTime date, String startTime, String endTime) async {
+    final banMsg = checkBookingBan();
+    if (banMsg != null) return banMsg;
+
     if (_timeToMin(startTime) >= _timeToMin(endTime)) {
       return 'Tugash vaqti boshlanish vaqtidan kech bo\'lishi kerak!';
     }
@@ -485,17 +643,50 @@ class AppProvider extends ChangeNotifier {
     return null;
   }
 
-  Future<void> cancelSeatBooking(String id) async {
-    await _db.collection('seat_bookings').doc(id).update({'status': 'cancelled'});
+  /// Bronni bekor qilish — boshlanishga 30 daqiqadan ko'p qolgan bo'lsa.
+  Future<String?> cancelSeatBooking(String id) async {
     final i = _seatBookings.indexWhere((b) => b.id == id);
     if (i >= 0) {
       final b = _seatBookings[i];
-      _seatBookings[i] = SeatBookingModel(
-        id: b.id, studentId: b.studentId, studentName: b.studentName,
-        roomId: b.roomId, roomName: b.roomName, date: b.date,
-        startTime: b.startTime, endTime: b.endTime,
-        status: 'cancelled', createdAt: b.createdAt,
-      );
+      final parts = b.startTime.split(':');
+      final startDT = DateTime(b.date.year, b.date.month, b.date.day,
+          int.parse(parts[0]), int.parse(parts[1]));
+      if (startDT.difference(DateTime.now()).inMinutes <= 30) {
+        return 'Bron boshlanishiga 30 daqiqa yoki kamroq qolganda bekor qilib bo\'lmaydi';
+      }
+    }
+    await _db.collection('seat_bookings').doc(id).update({'status': 'cancelled'});
+    if (i >= 0) {
+      _seatBookings[i] = _seatBookings[i].copyWith(status: 'cancelled');
+      notifyListeners();
+    }
+    return null;
+  }
+
+  /// Admin talaba kelganini tasdiqlaydi.
+  Future<void> confirmSeatBooking(String id) async {
+    final now = DateTime.now();
+    await _db.collection('seat_bookings').doc(id).update({
+      'status': 'confirmed',
+      'confirmedAt': Timestamp.fromDate(now),
+    });
+    final i = _seatBookings.indexWhere((b) => b.id == id);
+    if (i >= 0) {
+      _seatBookings[i] = _seatBookings[i].copyWith(status: 'confirmed', confirmedAt: now);
+      notifyListeners();
+    }
+  }
+
+  /// Talaba erta ketishini bildiradi — joy bo'shaydi.
+  Future<void> leaveSeatEarly(String id) async {
+    final now = DateTime.now();
+    await _db.collection('seat_bookings').doc(id).update({
+      'status': 'left',
+      'leftAt': Timestamp.fromDate(now),
+    });
+    final i = _seatBookings.indexWhere((b) => b.id == id);
+    if (i >= 0) {
+      _seatBookings[i] = _seatBookings[i].copyWith(status: 'left', leftAt: now);
       notifyListeners();
     }
   }
@@ -536,6 +727,33 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
+  /// Berilgan xona va sanaga oid barcha aktiv bronlarni qaytaradi.
+  Future<List<SeatBookingModel>> fetchRoomBookingsForDate(
+      String roomId, DateTime date) async {
+    final snap = await _db
+        .collection('seat_bookings')
+        .where('roomId', isEqualTo: roomId)
+        .get();
+    return snap.docs
+        .map(SeatBookingModel.fromFirestore)
+        .where((b) => b.status == 'active' && _sameDay(b.date, date))
+        .toList()
+      ..sort((a, b) => _timeToMin(a.startTime).compareTo(_timeToMin(b.startTime)));
+  }
+
+  /// Berilgan xona va sanaga oid bloklarni qaytaradi.
+  Future<List<RoomBlockModel>> fetchRoomBlocksForDate(
+      String roomId, DateTime date) async {
+    final snap = await _db
+        .collection('room_blocks')
+        .where('roomId', isEqualTo: roomId)
+        .get();
+    return snap.docs
+        .map(RoomBlockModel.fromFirestore)
+        .where((b) => _sameDay(b.date, date))
+        .toList();
+  }
+
   // ── Vaqt bloklash (admin) ─────────────────────────────────────────────────────
 
   Future<List<RoomBlockModel>> fetchRoomBlocks(String roomId) async {
@@ -546,7 +764,21 @@ class AppProvider extends ChangeNotifier {
       ..sort((a, b) => a.date.compareTo(b.date)));
   }
 
-  Future<void> addRoomBlock(String roomId, DateTime date, String startTime, String endTime, String reason) async {
+  Future<String?> addRoomBlock(String roomId, DateTime date, String startTime,
+      String endTime, String reason) async {
+    // Takroriy blok tekshiruvi
+    final existing = await _db
+        .collection('room_blocks')
+        .where('roomId', isEqualTo: roomId)
+        .get();
+    for (final doc in existing.docs) {
+      final d = doc.data() as Map<String, dynamic>;
+      final blockDate = (d['date'] as Timestamp).toDate();
+      if (_sameDay(blockDate, date) &&
+          _overlaps(startTime, endTime, d['startTime'], d['endTime'])) {
+        return 'Bu vaqt allaqachon bloklangan!';
+      }
+    }
     final ref = _db.collection('room_blocks').doc();
     final block = RoomBlockModel(
       id: ref.id, roomId: roomId, date: date,
@@ -554,6 +786,23 @@ class AppProvider extends ChangeNotifier {
       reason: reason, createdAt: DateTime.now(),
     );
     await ref.set(block.toFirestore());
+    return null;
+  }
+
+  /// Berilgan sana oralig'ida blok mavjud bo'lgan kunlar kaliti set.
+  /// Kalit: "yyyy-M-d" formatida.
+  Future<Set<String>> fetchBlockedDateKeys(
+      DateTime from, DateTime to) async {
+    final snap = await _db.collection('room_blocks').get();
+    final keys = <String>{};
+    for (final doc in snap.docs) {
+      final d = doc.data() as Map<String, dynamic>;
+      final blockDate = (d['date'] as Timestamp).toDate();
+      if (!blockDate.isBefore(from) && blockDate.isBefore(to)) {
+        keys.add('${blockDate.year}-${blockDate.month}-${blockDate.day}');
+      }
+    }
+    return keys;
   }
 
   Future<void> deleteRoomBlock(String id) async {

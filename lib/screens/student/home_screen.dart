@@ -4,6 +4,7 @@ import '../../providers/app_provider.dart';
 import '../../widgets/common_widgets.dart';
 import '../../constants.dart';
 import '../../l10n.dart';
+import 'notifications_screen.dart';
 
 // Indekslar: 0=Home 1=Books 2=Rooms 3=MyBooks 4=News 5=Settings
 const int _kBooksIndex = 1;
@@ -24,10 +25,45 @@ class StudentHomeScreen extends StatelessWidget {
     final recentAnn  = app.announcements.take(3).toList();
     final recentBooks = app.books.take(10).toList();
 
+    final notifCount = app.computeNotifications().length;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(s.appTitle),
         actions: [
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications_outlined),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                ),
+              ),
+              if (notifCount > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    width: 16,
+                    height: 16,
+                    decoration: const BoxDecoration(
+                      color: AppColors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      notifCount > 9 ? '9+' : '$notifCount',
+                      style: const TextStyle(
+                        fontSize: 9,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             onPressed: () => app.fetchBooks(),

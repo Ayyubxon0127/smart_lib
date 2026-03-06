@@ -17,6 +17,8 @@ class UserModel {
   final int visits;
   final int booksRead;
   final DateTime createdAt;
+  final int noShowCount;
+  final DateTime? bookingBanUntil;
 
   const UserModel({
     required this.id,
@@ -35,6 +37,8 @@ class UserModel {
     this.visits = 0,
     this.booksRead = 0,
     required this.createdAt,
+    this.noShowCount = 0,
+    this.bookingBanUntil,
   });
 
   factory UserModel.fromFirestore(DocumentSnapshot doc) {
@@ -56,6 +60,8 @@ class UserModel {
       visits: d['visits'] ?? 0,
       booksRead: d['booksRead'] ?? 0,
       createdAt: (d['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      noShowCount: d['noShowCount'] ?? 0,
+      bookingBanUntil: (d['bookingBanUntil'] as Timestamp?)?.toDate(),
     );
   }
 
@@ -75,12 +81,14 @@ class UserModel {
     'visits': visits,
     'booksRead': booksRead,
     'createdAt': Timestamp.fromDate(createdAt),
+    'noShowCount': noShowCount,
+    if (bookingBanUntil != null) 'bookingBanUntil': Timestamp.fromDate(bookingBanUntil!),
   };
 
   UserModel copyWith({
     String? name, String? phone, String? group, String? faculty,
     String? direction, String? degree, String? bio, String? avatar,
-    String? photoUrl, String? status,
+    String? photoUrl, String? status, int? noShowCount, DateTime? bookingBanUntil,
   }) => UserModel(
     id: id, email: email, role: role, createdAt: createdAt,
     name: name ?? this.name,
@@ -95,5 +103,7 @@ class UserModel {
     status: status ?? this.status,
     visits: visits,
     booksRead: booksRead,
+    noShowCount: noShowCount ?? this.noShowCount,
+    bookingBanUntil: bookingBanUntil ?? this.bookingBanUntil,
   );
 }

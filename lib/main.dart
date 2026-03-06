@@ -8,12 +8,14 @@ import 'providers/app_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/student/student_main.dart';
 import 'screens/librarian/librarian_main.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  await NotificationService.init();
   runApp(const SmartKutubxonaApp());
 }
 

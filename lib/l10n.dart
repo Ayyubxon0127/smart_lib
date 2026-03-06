@@ -238,9 +238,52 @@ class S {
   String get yourQuestion   => _t('Savolingizni yozing...', 'Write your question...', 'Напишите ваш вопрос...');
   String get yourAnswer     => _t('Javobingizni yozing...', 'Write your answer...', 'Напишите ваш ответ...');
   String reviewCount(int n) => _t('$n ta sharh', '$n reviews', '$n отзывов');
+  String get notifications   => _t('Bildirishnomalar', 'Notifications', 'Уведомления');
+  String get noNotifications => _t('Bildirishnomalar yo\'q', 'No notifications', 'Нет уведомлений');
   String viewsCount(int n) => _t('$n marta ko\'rilgan', '$n views', '$n просмотров');
   String get borrowedBy => _t('Kim olgan', 'Borrowed by', 'Взял(а)');
   String get studentDetails => _t('Talaba ma\'lumotlari', 'Student details', 'Данные студента');
+
+  // Room schedule
+  String get roomSchedule     => _t('Xona jadvali', 'Room schedule', 'Расписание комнаты');
+  String get scheduleBtn      => _t('Jadval', 'Schedule', 'Расписание');
+  String get today            => _t('Bugun', 'Today', 'Сегодня');
+  String get tomorrow         => _t('Ertaga', 'Tomorrow', 'Завтра');
+  String get yourBookingLabel => _t('Sizning broningiz', 'Your booking', 'Ваша бронь');
+  String get seatsUnit        => _t('o\'rin', 'seats', 'мест');
+  String get bookingsCount    => _t('ta bron', 'bookings', 'броней');
+
+  // Announcement image
+  String get annImageHint => _t('Rasm URL (ixtiyoriy)', 'Image URL (optional)', 'URL изображения (необязательно)');
+
+  // Full day block
+  String get fullDayBlock    => _t('Butun kunni yopish', 'Block full day', 'Заблокировать весь день');
+  String get fullDayLabel    => _t('Butun kun', 'Full day', 'Весь день');
+  String get holidayReason   => _t('Dam olish / Bayram kuni', 'Holiday / Day off', 'Выходной / Праздник');
+  String get dayHasBlocks    => _t('Bu kunda ba\'zi vaqtlar yopiq', 'Some times blocked this day', 'В этот день некоторое время закрыто');
+  String get bookFromSlot    => _t('Bron qilish', 'Book this slot', 'Забронировать');
+
+  // Fixed time slots
+  String get selectDuration  => _t('Davomiylik tanlang', 'Select duration', 'Выберите длительность');
+  String get selectSlot      => _t('Vaqt tanlang', 'Select time', 'Выберите время');
+  String hour(int n)         => _t('${n} soat', '${n} hour${n > 1 ? "s" : ""}', '${n} ч.');
+  String get slotAuto        => _t('Vaqt avtomatik hisoblanadi', 'Time auto-calculated', 'Время подсчитывается');
+
+  // Booking actions
+  String get confirmArrival  => _t('Dars tasdiqlash', 'Confirm arrival', 'Подтвердить прибытие');
+  String get leavingEarly    => _t('Ketdim', 'I\'m leaving', 'Ухожу');
+  String get bookingConfirmed => _t('Kelishingiz tasdiqlandi!', 'Arrival confirmed!', 'Прибытие подтверждено!');
+  String get leftEarly       => _t('Joy bo\'shatildi', 'Seat freed', 'Место освобождено');
+  String get cancelTooLate   => _t('Boshlanishga 30 daqiqa qoldi, bekor bo\'lmaydi', 'Less than 30 min to start', 'Менее 30 мин до начала');
+  String minutesLeft(int n)  => _t('$n daqiqa qoldi', '$n min left', '$n мин. осталось');
+  String get confirmWindow   => _t('Tasdiqlash oynasi ochiq', 'Confirm window open', 'Окно подтверждения открыто');
+  String get viewDetails     => _t('Batafsil', 'Details', 'Подробнее');
+  String get noShowWarning   => _t('Kelmasangiz, cheklov qo\'yiladi!', 'No-show penalty applies!', 'Штраф за неявку!');
+
+  // Status labels
+  String get statusConfirmed => _t('Tasdiqlangan', 'Confirmed', 'Подтверждено');
+  String get statusLeft      => _t('Erta chiqqan', 'Left early', 'Ушёл раньше');
+  String get statusNoShow    => _t('Kelmagan', 'No-show', 'Не явился');
 
   String _t(String uz, String en, String ru) {
     if (lang == 'ru') return ru;

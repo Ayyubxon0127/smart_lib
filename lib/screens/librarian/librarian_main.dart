@@ -12,6 +12,7 @@ import '../../constants.dart';
 import '../../l10n.dart';
 import '../student/settings_screen.dart';
 import '../student/books_screen.dart';
+import '../../widgets/room_schedule_sheet.dart';
 
 // ─── Navigatsiya indekslari ───────────────────────────────────────────────────
 const int _kLibBooksIndex = 1;
@@ -1751,6 +1752,19 @@ class _AnnouncementsScreen extends StatelessWidget {
                   const SizedBox(height: 6),
                   Text(a.content,
                       style: TextStyle(fontSize: 13, color: Colors.grey.shade600, height: 1.5)),
+                  if (a.imageUrl != null && a.imageUrl!.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.network(
+                        a.imageUrl!,
+                        width: double.infinity,
+                        height: 180,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 8),
                   Text('${a.author}',
                       style: const TextStyle(fontSize: 11, color: Colors.grey)),
@@ -1774,6 +1788,7 @@ class _AnnouncementFormSheet extends StatefulWidget {
 class _AnnouncementFormSheetState extends State<_AnnouncementFormSheet> {
   final _titleCtrl   = TextEditingController();
   final _contentCtrl = TextEditingController();
+  final _imageCtrl   = TextEditingController();
   String _type      = 'info';
   bool   _important = false;
   bool   _saving    = false;
@@ -1816,6 +1831,9 @@ class _AnnouncementFormSheetState extends State<_AnnouncementFormSheet> {
                     prefix: const Icon(Icons.title_outlined, size: 18)),
                 const SizedBox(height: 10),
                 AppTextField(hint: s.annContentHint, controller: _contentCtrl, maxLines: 4),
+                const SizedBox(height: 10),
+                AppTextField(hint: s.annImageHint, controller: _imageCtrl,
+                    prefix: const Icon(Icons.image_outlined, size: 18)),
                 const SizedBox(height: 14),
                 Text(s.annType,
                     style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.grey)),
@@ -1858,11 +1876,13 @@ class _AnnouncementFormSheetState extends State<_AnnouncementFormSheet> {
                   onTap: () async {
                     if (_titleCtrl.text.trim().isEmpty || _contentCtrl.text.trim().isEmpty) return;
                     setState(() => _saving = true);
+                    final imgUrl = _imageCtrl.text.trim().isEmpty
+                        ? null : _imageCtrl.text.trim();
                     await app.addAnnouncement(
                       AnnouncementModel(
                         id: '', title: _titleCtrl.text.trim(),
                         content: _contentCtrl.text.trim(), type: _type,
-                        important: _important, author: '',
+                        important: _important, imageUrl: imgUrl, author: '',
                         date: DateTime.now(),
                       ),
                     );
@@ -1893,131 +1913,280 @@ class _RoomsScreen extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.add_rounded),
-            onPressed: () => _showRoomForm(context),
+            onPressed: () => showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (_) => const _RoomFormSheet(),
+            ),
           ),
         ],
       ),
       body: app.rooms.isEmpty
           ? Center(child: Text(s.noRooms, style: const TextStyle(color: Colors.grey)))
           : ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: app.rooms.length,
-        itemBuilder: (_, i) => _RoomTile(room: app.rooms[i]),
-      ),
-    );
-  }
-
-  void _showRoomForm(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => const _RoomFormSheet(),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+              itemCount: app.rooms.length,
+              itemBuilder: (_, i) => _RoomTile(room: app.rooms[i]),
+            ),
     );
   }
 }
 
-class _RoomTile extends StatelessWidget {
+// ── Xona kartasi ─────────────────────────────────────────────────────────────
+
+class _RoomTile extends StatefulWidget {
   final RoomModel room;
   const _RoomTile({required this.room});
+
+  @override
+  State<_RoomTile> createState() => _RoomTileState();
+}
+
+class _RoomTileState extends State<_RoomTile> {
+  int _imgIndex = 0;
 
   @override
   Widget build(BuildContext context) {
     final app = context.read<AppProvider>();
     final s = S.read(context);
+    final room = widget.room;
+    final images = room.imageUrls.where((u) => u.isNotEmpty).toList();
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: AppCard(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          children: [
-            Container(
-              width: 50, height: 50,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: AppColors.accent.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(Icons.meeting_room_outlined, color: AppColors.accent, size: 28),
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.4)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10, offset: const Offset(0, 3),
             ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+
+            // ── Rasm bo'limi ──────────────────────────────────────────
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+              child: Stack(
                 children: [
-                  Text(room.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 3),
-                  Row(children: [
-                    StatusBadge(label: '${room.capacity} o\'rin', color: AppColors.blue),
-                    if (room.description != null && room.description!.isNotEmpty) ...[
-                      const SizedBox(width: 6),
-                      Flexible(child: Text(room.description!, style: TextStyle(fontSize: 11, color: Colors.grey.shade500), maxLines: 1)),
-                    ],
-                  ]),
+                  if (images.isEmpty)
+                    Container(
+                      height: 155,
+                      width: double.infinity,
+                      color: AppColors.accent.withOpacity(0.07),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.meeting_room_outlined, size: 52, color: AppColors.accent),
+                          const SizedBox(height: 6),
+                          Text(room.name,
+                              style: const TextStyle(fontSize: 12, color: AppColors.accent, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    )
+                  else
+                    SizedBox(
+                      height: 155,
+                      child: PageView.builder(
+                        itemCount: images.length,
+                        onPageChanged: (i) => setState(() => _imgIndex = i),
+                        itemBuilder: (_, i) => Image.network(
+                          images[i],
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          errorBuilder: (_, __, ___) => Container(
+                            color: AppColors.accent.withOpacity(0.07),
+                            child: const Icon(Icons.meeting_room_outlined, size: 52, color: AppColors.accent),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  // Sahifa ko'rsatkichi
+                  if (images.length > 1)
+                    Positioned(
+                      bottom: 8, left: 0, right: 0,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(images.length, (i) => AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: i == _imgIndex ? 18 : 6,
+                          height: 6,
+                          margin: const EdgeInsets.symmetric(horizontal: 2),
+                          decoration: BoxDecoration(
+                            color: i == _imgIndex ? AppColors.accent : Colors.white.withOpacity(0.7),
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                        )),
+                      ),
+                    ),
+
+                  // Rasm soni badge
+                  if (images.length > 1)
+                    Positioned(
+                      top: 8, right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          const Icon(Icons.photo_library_outlined, size: 12, color: Colors.white),
+                          const SizedBox(width: 4),
+                          Text('${_imgIndex + 1}/${images.length}',
+                              style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w700)),
+                        ]),
+                      ),
+                    ),
                 ],
               ),
             ),
-            Column(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.block_outlined, size: 18, color: AppColors.orange),
-                  tooltip: s.blockTime,
-                  onPressed: () => showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (_) => _BlockFormSheet(room: room),
+
+            // ── Ma'lumotlar ───────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    Expanded(
+                      child: Text(room.name,
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                    ),
+                    StatusBadge(label: '${room.capacity} o\'rin', color: AppColors.blue),
+                  ]),
+                  const SizedBox(height: 6),
+                  Row(children: [
+                    const Icon(Icons.access_time_rounded, size: 13, color: Colors.grey),
+                    const SizedBox(width: 4),
+                    Text('${room.openTime} – ${room.closeTime}',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                  ]),
+                  if (room.description != null && room.description!.isNotEmpty) ...[
+                    const SizedBox(height: 5),
+                    Text(room.description!,
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                        maxLines: 2, overflow: TextOverflow.ellipsis),
+                  ],
+                ],
+              ),
+            ),
+
+            // ── Pastki amallar ────────────────────────────────────────
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+              child: Row(
+                children: [
+                  _ActionBtn(
+                    icon: Icons.block_outlined,
+                    label: s.blockTime,
+                    color: AppColors.orange,
+                    onTap: () => showModalBottomSheet(
+                      context: context, isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (_) => _BlockFormSheet(room: room),
+                    ),
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.calendar_month_outlined, size: 18, color: AppColors.blue),
-                  tooltip: s.viewRoomBookings,
-                  onPressed: () => showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (_) => _RoomBookingsSheet(room: room),
+                  _ActionBtn(
+                    icon: Icons.calendar_month_outlined,
+                    label: s.viewRoomBookings,
+                    color: AppColors.blue,
+                    onTap: () => showModalBottomSheet(
+                      context: context, isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (_) => _RoomBookingsSheet(room: room),
+                    ),
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.edit_outlined, size: 18),
-                  onPressed: () => showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (_) => _RoomFormSheet(room: room),
+                  _ActionBtn(
+                    icon: Icons.edit_outlined,
+                    label: s.editRoom,
+                    color: AppColors.green,
+                    onTap: () => showModalBottomSheet(
+                      context: context, isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (_) => _RoomFormSheet(room: room),
+                    ),
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.red),
-                  onPressed: () => _confirmDelete(context, app, s),
-                ),
-              ],
+                  _ActionBtn(
+                    icon: Icons.delete_outline,
+                    label: s.delete,
+                    color: AppColors.red,
+                    onTap: () => showDialog(
+                      context: context,
+                      builder: (_) => AlertDialog(
+                        title: Text(s.deleteRoom),
+                        content: Text(s.deleteConfirm(room.name)),
+                        actions: [
+                          TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: Text(s.cancel)),
+                          TextButton(
+                            onPressed: () async {
+                              Navigator.pop(context);
+                              await app.deleteRoom(room.id);
+                            },
+                            child: Text(s.delete,
+                                style: const TextStyle(color: AppColors.red)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
       ),
     );
   }
+}
 
-  void _confirmDelete(BuildContext context, AppProvider app, S s) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(s.deleteRoom),
-        content: Text(s.deleteConfirm(room.name)),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text(s.cancel)),
-          TextButton(
-            onPressed: () async { Navigator.pop(context); await app.deleteRoom(room.id); },
-            child: Text(s.delete, style: const TextStyle(color: AppColors.red)),
+class _ActionBtn extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+  const _ActionBtn({required this.icon, required this.label, required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 21, color: color),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(fontSize: 9, color: color, fontWeight: FontWeight.w700),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 }
+
+// ── Xona qo'shish/tahrirlash formasi ─────────────────────────────────────────
 
 class _RoomFormSheet extends StatefulWidget {
   final RoomModel? room;
@@ -2031,27 +2200,35 @@ class _RoomFormSheetState extends State<_RoomFormSheet> {
   final _nameCtrl = TextEditingController();
   final _capCtrl  = TextEditingController();
   final _descCtrl = TextEditingController();
+  final List<TextEditingController> _imageCtrlList = [];
   TimeOfDay _openTime  = const TimeOfDay(hour: 8,  minute: 0);
   TimeOfDay _closeTime = const TimeOfDay(hour: 20, minute: 0);
   bool _saving = false;
 
   String _fmtTime(TimeOfDay t) =>
-      '${t.hour.toString().padLeft(2,'0')}:${t.minute.toString().padLeft(2,'0')}';
+      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 
   TimeOfDay _parseTime(String s) {
     final p = s.split(':');
     return TimeOfDay(hour: int.parse(p[0]), minute: int.parse(p[1]));
   }
 
+  List<String> get _imageUrls =>
+      _imageCtrlList.map((c) => c.text.trim()).where((u) => u.isNotEmpty).toList();
+
   @override
   void initState() {
     super.initState();
     if (widget.room != null) {
-      _nameCtrl.text = widget.room!.name;
-      _capCtrl.text  = '${widget.room!.capacity}';
-      _descCtrl.text = widget.room!.description ?? '';
-      _openTime  = _parseTime(widget.room!.openTime);
-      _closeTime = _parseTime(widget.room!.closeTime);
+      final r = widget.room!;
+      _nameCtrl.text = r.name;
+      _capCtrl.text  = '${r.capacity}';
+      _descCtrl.text = r.description ?? '';
+      _openTime  = _parseTime(r.openTime);
+      _closeTime = _parseTime(r.closeTime);
+      for (final url in r.imageUrls) {
+        _imageCtrlList.add(TextEditingController(text: url));
+      }
     } else {
       _capCtrl.text = '10';
     }
@@ -2060,6 +2237,7 @@ class _RoomFormSheetState extends State<_RoomFormSheet> {
   @override
   void dispose() {
     _nameCtrl.dispose(); _capCtrl.dispose(); _descCtrl.dispose();
+    for (final c in _imageCtrlList) c.dispose();
     super.dispose();
   }
 
@@ -2084,65 +2262,176 @@ class _RoomFormSheetState extends State<_RoomFormSheet> {
           color: Theme.of(context).scaffoldBackgroundColor,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(isEdit ? s.editRoom : s.addRoom,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 16),
-            AppTextField(hint: s.roomNameHint, controller: _nameCtrl),
-            const SizedBox(height: 10),
-            AppTextField(hint: s.capacityHint, controller: _capCtrl, keyboardType: TextInputType.number),
-            const SizedBox(height: 10),
-            AppTextField(hint: s.roomDescHint, controller: _descCtrl, maxLines: 2),
-            const SizedBox(height: 12),
-            Text(s.workingHours,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.grey)),
-            const SizedBox(height: 8),
-            Row(children: [
-              Expanded(child: _TimePickerTile(
-                label: s.openTime,
-                time: _openTime,
-                color: AppColors.green,
-                onTap: () => _pickTime(true),
-              )),
-              const SizedBox(width: 10),
-              Expanded(child: _TimePickerTile(
-                label: s.closeTime,
-                time: _closeTime,
-                color: AppColors.red,
-                onTap: () => _pickTime(false),
-              )),
-            ]),
-            const SizedBox(height: 16),
-            AccentButton(
-              label: isEdit ? s.save : s.add,
-              icon: Icons.check_rounded,
-              loading: _saving,
-              onTap: () async {
-                if (_nameCtrl.text.trim().isEmpty) return;
-                setState(() => _saving = true);
-                final cap = int.tryParse(_capCtrl.text.trim()) ?? 1;
-                if (isEdit) {
-                  await app.updateRoom(widget.room!.id, {
-                    'name': _nameCtrl.text.trim(),
-                    'capacity': cap,
-                    'description': _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
-                    'openTime': _fmtTime(_openTime),
-                    'closeTime': _fmtTime(_closeTime),
-                  });
-                } else {
-                  await app.addRoom(RoomModel(
-                    id: '', name: _nameCtrl.text.trim(), capacity: cap,
-                    description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
-                    openTime: _fmtTime(_openTime),
-                    closeTime: _fmtTime(_closeTime),
-                  ));
-                }
-                if (mounted) Navigator.pop(context);
-              },
+            // Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 12, 0),
+              child: Row(children: [
+                Text(isEdit ? s.editRoom : s.addRoom,
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                const Spacer(),
+                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+              ]),
+            ),
+            const Divider(),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                children: [
+                  // Asosiy ma'lumotlar
+                  AppTextField(hint: s.roomNameHint, controller: _nameCtrl,
+                      prefix: const Icon(Icons.meeting_room_outlined, size: 18)),
+                  const SizedBox(height: 10),
+                  AppTextField(hint: s.capacityHint, controller: _capCtrl,
+                      keyboardType: TextInputType.number,
+                      prefix: const Icon(Icons.people_outline, size: 18)),
+                  const SizedBox(height: 10),
+                  AppTextField(hint: s.roomDescHint, controller: _descCtrl, maxLines: 2,
+                      prefix: const Icon(Icons.info_outline, size: 18)),
+                  const SizedBox(height: 14),
+
+                  // ── Rasmlar ──────────────────────────────────────────
+                  Row(children: [
+                    const Icon(Icons.photo_library_outlined, size: 14, color: Colors.grey),
+                    const SizedBox(width: 6),
+                    const Text('Xona rasmlari (ixtiyoriy)',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.grey)),
+                  ]),
+                  const SizedBox(height: 8),
+
+                  ...List.generate(_imageCtrlList.length, (i) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Kichik preview
+                        if (_imageCtrlList[i].text.trim().isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8, top: 2),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(
+                                _imageCtrlList[i].text.trim(),
+                                width: 44, height: 44, fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(
+                                  width: 44, height: 44,
+                                  color: AppColors.accent.withOpacity(0.1),
+                                  child: const Icon(Icons.broken_image_outlined,
+                                      color: AppColors.red, size: 20),
+                                ),
+                              ),
+                            ),
+                          ),
+                        Expanded(
+                          child: TextField(
+                            controller: _imageCtrlList[i],
+                            onChanged: (_) => setState(() {}),
+                            decoration: InputDecoration(
+                              hintText: 'Rasm URL ${i + 1}',
+                              hintStyle: const TextStyle(fontSize: 12),
+                              prefixIcon: const Icon(Icons.link_rounded, size: 18),
+                              filled: true,
+                              fillColor: Theme.of(context).cardColor,
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  vertical: 12, horizontal: 12),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        IconButton(
+                          icon: const Icon(Icons.remove_circle_outline,
+                              color: AppColors.red, size: 20),
+                          onPressed: () => setState(() {
+                            _imageCtrlList[i].dispose();
+                            _imageCtrlList.removeAt(i);
+                          }),
+                        ),
+                      ],
+                    ),
+                  )),
+
+                  // Rasm qo'shish tugmasi
+                  GestureDetector(
+                    onTap: () => setState(() => _imageCtrlList.add(TextEditingController())),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 11),
+                      decoration: BoxDecoration(
+                        color: AppColors.accent.withOpacity(0.06),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                            color: AppColors.accent.withOpacity(0.35),
+                            style: BorderStyle.solid),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.add_photo_alternate_outlined,
+                              size: 18, color: AppColors.accent),
+                          SizedBox(width: 8),
+                          Text('Rasm qo\'shish',
+                              style: TextStyle(fontSize: 13, color: AppColors.accent,
+                                  fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // ── Ish vaqti ─────────────────────────────────────────
+                  Text(s.workingHours,
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.grey)),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    Expanded(child: _TimePickerTile(
+                      label: s.openTime, time: _openTime,
+                      color: AppColors.green, onTap: () => _pickTime(true),
+                    )),
+                    const SizedBox(width: 10),
+                    Expanded(child: _TimePickerTile(
+                      label: s.closeTime, time: _closeTime,
+                      color: AppColors.red, onTap: () => _pickTime(false),
+                    )),
+                  ]),
+                  const SizedBox(height: 20),
+                  AccentButton(
+                    label: isEdit ? s.save : s.add,
+                    icon: Icons.check_rounded,
+                    loading: _saving,
+                    onTap: () async {
+                      if (_nameCtrl.text.trim().isEmpty) return;
+                      setState(() => _saving = true);
+                      final cap = int.tryParse(_capCtrl.text.trim()) ?? 1;
+                      if (isEdit) {
+                        await app.updateRoom(widget.room!.id, {
+                          'name': _nameCtrl.text.trim(),
+                          'capacity': cap,
+                          'description': _descCtrl.text.trim().isEmpty
+                              ? null : _descCtrl.text.trim(),
+                          'openTime': _fmtTime(_openTime),
+                          'closeTime': _fmtTime(_closeTime),
+                          'imageUrls': _imageUrls,
+                        });
+                      } else {
+                        await app.addRoom(RoomModel(
+                          id: '', name: _nameCtrl.text.trim(), capacity: cap,
+                          description: _descCtrl.text.trim().isEmpty
+                              ? null : _descCtrl.text.trim(),
+                          openTime: _fmtTime(_openTime),
+                          closeTime: _fmtTime(_closeTime),
+                          imageUrls: _imageUrls,
+                        ));
+                      }
+                      if (mounted) Navigator.pop(context);
+                    },
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -2201,11 +2490,15 @@ class _BlockFormSheetState extends State<_BlockFormSheet> {
   TimeOfDay _start = const TimeOfDay(hour: 9, minute: 0);
   TimeOfDay _end   = const TimeOfDay(hour: 17, minute: 0);
   final _reasonCtrl = TextEditingController();
-  bool _saving = false;
+  bool _saving   = false;
+  bool _fullDay  = false;
   List<RoomBlockModel>? _blocks;
 
   String _fmt(TimeOfDay t) =>
       '${t.hour.toString().padLeft(2,'0')}:${t.minute.toString().padLeft(2,'0')}';
+
+  String get _startStr => _fullDay ? widget.room.openTime : _fmt(_start);
+  String get _endStr   => _fullDay ? widget.room.closeTime : _fmt(_end);
 
   @override
   void initState() {
@@ -2289,34 +2582,93 @@ class _BlockFormSheetState extends State<_BlockFormSheet> {
                           ),
                         ),
                         const SizedBox(height: 10),
-                        Row(children: [
-                          Expanded(child: InkWell(
-                            onTap: () => _pickTime(true),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                              decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(10)),
-                              child: Row(children: [
-                                const Icon(Icons.access_time_rounded, size: 16, color: AppColors.accent),
-                                const SizedBox(width: 8),
-                                Text(_fmt(_start), style: const TextStyle(fontWeight: FontWeight.w700)),
-                              ]),
+                        // ── Butun kun toggle ──────────────────────────
+                        GestureDetector(
+                          onTap: () => setState(() {
+                            _fullDay = !_fullDay;
+                            if (_fullDay) {
+                              _reasonCtrl.text = s.holidayReason;
+                            }
+                          }),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: _fullDay
+                                  ? AppColors.red.withOpacity(0.1)
+                                  : Theme.of(context).cardColor,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: _fullDay
+                                    ? AppColors.red.withOpacity(0.4)
+                                    : Theme.of(context).dividerColor.withOpacity(0.5),
+                              ),
                             ),
-                          )),
-                          const SizedBox(width: 10),
-                          Expanded(child: InkWell(
-                            onTap: () => _pickTime(false),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                              decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(10)),
-                              child: Row(children: [
-                                const Icon(Icons.access_time_rounded, size: 16, color: AppColors.orange),
-                                const SizedBox(width: 8),
-                                Text(_fmt(_end), style: const TextStyle(fontWeight: FontWeight.w700)),
-                              ]),
-                            ),
-                          )),
-                        ]),
+                            child: Row(children: [
+                              Icon(
+                                _fullDay ? Icons.event_busy_rounded : Icons.event_available_outlined,
+                                size: 18,
+                                color: _fullDay ? AppColors.red : Colors.grey,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(s.fullDayBlock,
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 13,
+                                            color: _fullDay ? AppColors.red : null)),
+                                    Text(
+                                      '${widget.room.openTime} – ${widget.room.closeTime}',
+                                      style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Switch(
+                                value: _fullDay,
+                                onChanged: (v) => setState(() {
+                                  _fullDay = v;
+                                  if (v) _reasonCtrl.text = s.holidayReason;
+                                }),
+                                activeColor: AppColors.red,
+                              ),
+                            ]),
+                          ),
+                        ),
                         const SizedBox(height: 10),
+                        // ── Vaqt pickerlari (faqat butun kun bo'lmasa) ─
+                        if (!_fullDay)
+                          Row(children: [
+                            Expanded(child: InkWell(
+                              onTap: () => _pickTime(true),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(10)),
+                                child: Row(children: [
+                                  const Icon(Icons.access_time_rounded, size: 16, color: AppColors.accent),
+                                  const SizedBox(width: 8),
+                                  Text(_fmt(_start), style: const TextStyle(fontWeight: FontWeight.w700)),
+                                ]),
+                              ),
+                            )),
+                            const SizedBox(width: 10),
+                            Expanded(child: InkWell(
+                              onTap: () => _pickTime(false),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(10)),
+                                child: Row(children: [
+                                  const Icon(Icons.access_time_rounded, size: 16, color: AppColors.orange),
+                                  const SizedBox(width: 8),
+                                  Text(_fmt(_end), style: const TextStyle(fontWeight: FontWeight.w700)),
+                                ]),
+                              ),
+                            )),
+                          ]),
+                        if (!_fullDay) const SizedBox(height: 10),
                         AppTextField(hint: s.blockReasonHint, controller: _reasonCtrl),
                         const SizedBox(height: 12),
                         AccentButton(
@@ -2326,8 +2678,21 @@ class _BlockFormSheetState extends State<_BlockFormSheet> {
                           onTap: () async {
                             if (_reasonCtrl.text.trim().isEmpty) return;
                             setState(() => _saving = true);
-                            await app.addRoomBlock(widget.room.id, _date, _fmt(_start), _fmt(_end), _reasonCtrl.text.trim());
+                            final err = await app.addRoomBlock(
+                                widget.room.id, _date, _startStr, _endStr,
+                                _reasonCtrl.text.trim());
+                            if (err != null) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content: Text('⚠️ $err'),
+                                        backgroundColor: AppColors.orange));
+                                setState(() => _saving = false);
+                              }
+                              return;
+                            }
                             _reasonCtrl.clear();
+                            setState(() => _fullDay = false);
                             await _loadBlocks();
                             if (mounted) setState(() => _saving = false);
                           },
@@ -2412,14 +2777,17 @@ class _RoomBookingsSheetState extends State<_RoomBookingsSheet> {
   }
 
   Future<void> _load() async {
+    // Single-field query — no composite index needed; filter and sort client-side
     final snap = await FirebaseFirestore.instance
         .collection('seat_bookings')
         .where('roomId', isEqualTo: widget.room.id)
-        .where('status', isEqualTo: 'active')
-        .orderBy('date', descending: false)
         .get();
     if (mounted) {
-      setState(() => _bookings = snap.docs.map(SeatBookingModel.fromFirestore).toList());
+      final all = snap.docs.map(SeatBookingModel.fromFirestore).toList();
+      all.sort((a, b) => a.date.compareTo(b.date));
+      setState(() => _bookings = all
+          .where((b) => b.status == 'active' || b.status == 'confirmed')
+          .toList());
     }
   }
 

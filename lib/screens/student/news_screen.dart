@@ -57,6 +57,19 @@ class NewsScreen extends StatelessWidget {
                   Text(a.title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
                   const SizedBox(height: 6),
                   Text(a.content, style: TextStyle(fontSize: 13, color: Colors.grey.shade600, height: 1.5)),
+                  if (a.imageUrl != null && a.imageUrl!.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.network(
+                        a.imageUrl!,
+                        width: double.infinity,
+                        height: 180,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 8),
                   Text('✍️ ${a.author}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
                 ],

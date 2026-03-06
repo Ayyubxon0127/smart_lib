@@ -6,8 +6,9 @@ class RoomModel {
   final int capacity;
   final String? description;
   final bool isActive;
-  final String openTime;  // "HH:mm" e.g. "08:00"
-  final String closeTime; // "HH:mm" e.g. "20:00"
+  final String openTime;
+  final String closeTime;
+  final List<String> imageUrls;
 
   const RoomModel({
     required this.id,
@@ -17,6 +18,7 @@ class RoomModel {
     this.isActive = true,
     this.openTime = '08:00',
     this.closeTime = '20:00',
+    this.imageUrls = const [],
   });
 
   factory RoomModel.fromFirestore(DocumentSnapshot doc) {
@@ -29,6 +31,7 @@ class RoomModel {
       isActive: d['isActive'] ?? true,
       openTime: d['openTime'] ?? '08:00',
       closeTime: d['closeTime'] ?? '20:00',
+      imageUrls: List<String>.from(d['imageUrls'] ?? []),
     );
   }
 
@@ -39,6 +42,7 @@ class RoomModel {
     'isActive': isActive,
     'openTime': openTime,
     'closeTime': closeTime,
+    'imageUrls': imageUrls,
   };
 }
 
@@ -51,8 +55,11 @@ class SeatBookingModel {
   final DateTime date;
   final String startTime; // "HH:mm"
   final String endTime;   // "HH:mm"
-  final String status;    // 'active' | 'cancelled'
+  /// 'active' | 'confirmed' | 'left' | 'cancelled' | 'no_show'
+  final String status;
   final DateTime createdAt;
+  final DateTime? confirmedAt;
+  final DateTime? leftAt;
 
   const SeatBookingModel({
     required this.id,
@@ -65,11 +72,16 @@ class SeatBookingModel {
     required this.endTime,
     this.status = 'active',
     required this.createdAt,
+    this.confirmedAt,
+    this.leftAt,
   });
 
-  bool get isUpcoming =>
-      status == 'active' &&
-      date.isAfter(DateTime.now().subtract(const Duration(days: 1)));
+  bool get isUpcoming {
+    if (status == 'cancelled' || status == 'no_show') return false;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return !date.isBefore(today);
+  }
 
   factory SeatBookingModel.fromFirestore(DocumentSnapshot doc) {
     final d = doc.data() as Map<String, dynamic>;
@@ -84,6 +96,8 @@ class SeatBookingModel {
       endTime: d['endTime'] ?? '',
       status: d['status'] ?? 'active',
       createdAt: (d['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      confirmedAt: (d['confirmedAt'] as Timestamp?)?.toDate(),
+      leftAt: (d['leftAt'] as Timestamp?)?.toDate(),
     );
   }
 
@@ -97,7 +111,19 @@ class SeatBookingModel {
     'endTime': endTime,
     'status': status,
     'createdAt': Timestamp.fromDate(createdAt),
+    if (confirmedAt != null) 'confirmedAt': Timestamp.fromDate(confirmedAt!),
+    if (leftAt != null) 'leftAt': Timestamp.fromDate(leftAt!),
   };
+
+  SeatBookingModel copyWith({String? status, DateTime? confirmedAt, DateTime? leftAt}) =>
+      SeatBookingModel(
+        id: id, studentId: studentId, studentName: studentName,
+        roomId: roomId, roomName: roomName, date: date,
+        startTime: startTime, endTime: endTime, createdAt: createdAt,
+        status: status ?? this.status,
+        confirmedAt: confirmedAt ?? this.confirmedAt,
+        leftAt: leftAt ?? this.leftAt,
+      );
 }
 
 class RoomBlockModel {
