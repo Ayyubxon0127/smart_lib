@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/app_provider.dart';
 import '../../models/book_model.dart';
 import '../../models/reservation_model.dart';
+import '../../models/user_model.dart';
 import '../../models/review_model.dart';
 import '../../models/room_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -10,6 +11,7 @@ import '../../widgets/common_widgets.dart';
 import '../../constants.dart';
 import '../../l10n.dart';
 import '../student/settings_screen.dart';
+import '../student/books_screen.dart';
 
 // ─── Navigatsiya indekslari ───────────────────────────────────────────────────
 const int _kLibBooksIndex = 1;
@@ -543,61 +545,150 @@ class _BookTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = context.read<AppProvider>();
+    final s = S.read(context);
+
+    final borrowers = app.reservations.where((r) =>
+      r.bookId == book.id &&
+      (r.status == 'active' || r.status == 'pending_confirm' || r.status == 'return_requested')
+    ).toList();
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: AppCard(
         padding: const EdgeInsets.all(12),
-        child: Row(
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => BookDetailPage(book: book)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            BookCover(imageUrl: book.imageUrl, emoji: book.coverEmoji, width: 44, height: 58),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(book.title,
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-                      maxLines: 2),
-                  const SizedBox(height: 3),
-                  Text(book.author,
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
-                  const SizedBox(height: 6),
-                  Row(children: [
-                    StatusBadge(label: '${book.available}/${book.total}', color: AppColors.green),
-                    const SizedBox(width: 6),
-                    StatusBadge(label: book.category, color: AppColors.blue),
-                  ]),
-                ],
-              ),
-            ),
-            Column(
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                IconButton(
-                  icon: const Icon(Icons.help_outline, size: 18, color: AppColors.blue),
-                  tooltip: S.read(context).questions,
-                  onPressed: () => showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (_) => _BookQuestionsSheet(book: book),
+                BookCover(imageUrl: book.imageUrl, emoji: book.coverEmoji, width: 44, height: 58),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(book.title,
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                          maxLines: 2),
+                      const SizedBox(height: 3),
+                      Text(book.author,
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                      const SizedBox(height: 5),
+                      if (book.rating > 0 || book.views > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Row(children: [
+                            if (book.rating > 0) ...[
+                              const Icon(Icons.star_rounded, size: 13, color: Colors.amber),
+                              const SizedBox(width: 3),
+                              Text(book.rating.toStringAsFixed(1),
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                              const SizedBox(width: 8),
+                            ],
+                            if (book.views > 0) ...[
+                              Icon(Icons.visibility_outlined, size: 13, color: Colors.grey.shade500),
+                              const SizedBox(width: 3),
+                              Text('${book.views}',
+                                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                            ],
+                          ]),
+                        ),
+                      Row(children: [
+                        StatusBadge(
+                          label: '${book.available}/${book.total}',
+                          color: book.available > 0 ? AppColors.green : Colors.grey,
+                        ),
+                        const SizedBox(width: 6),
+                        StatusBadge(label: book.category, color: AppColors.blue),
+                      ]),
+                    ],
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.edit_outlined, size: 18),
-                  onPressed: () => showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (_) => _BookFormSheet(book: book),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.red),
-                  onPressed: () => _confirmDelete(context, app, book),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.help_outline, size: 18, color: AppColors.blue),
+                      tooltip: s.questions,
+                      onPressed: () => showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (_) => _BookQuestionsSheet(book: book),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      onPressed: () => showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (_) => _BookFormSheet(book: book),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.red),
+                      onPressed: () => _confirmDelete(context, app, book),
+                    ),
+                  ],
                 ),
               ],
             ),
+            if (borrowers.isNotEmpty) ...[
+              const Divider(height: 14),
+              Text(s.borrowedBy,
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: borrowers.map((r) {
+                  final statusColor = r.status == 'active'
+                      ? AppColors.green
+                      : r.status == 'return_requested'
+                          ? AppColors.blue
+                          : AppColors.orange;
+                  return GestureDetector(
+                    onTap: () {
+                      final studentList = app.students.where((st) => st.id == r.studentId);
+                      final student = studentList.isEmpty ? null : studentList.first;
+                      showModalBottomSheet(
+                        context: context,
+                        backgroundColor: Colors.transparent,
+                        isScrollControlled: true,
+                        builder: (_) => _StudentDetailSheet(
+                          studentName: r.studentName,
+                          student: student,
+                          reservation: r,
+                        ),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: statusColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: statusColor.withOpacity(0.35)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.person_outline, size: 12, color: statusColor),
+                          const SizedBox(width: 4),
+                          Text(r.studentName,
+                              style: TextStyle(fontSize: 11, color: statusColor, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
           ],
         ),
       ),
@@ -626,6 +717,148 @@ class _BookTile extends StatelessWidget {
   }
 }
 
+// ─── Talaba tafsilotlari ───────────────────────────────────────────────────────
+
+class _StudentDetailSheet extends StatelessWidget {
+  final String studentName;
+  final UserModel? student;
+  final ReservationModel reservation;
+
+  const _StudentDetailSheet({
+    required this.studentName,
+    required this.student,
+    required this.reservation,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.read(context);
+    final st = student;
+
+    Color statusColor;
+    String statusLabel;
+    switch (reservation.status) {
+      case 'active':
+        statusColor = AppColors.green; statusLabel = s.statusActive; break;
+      case 'return_requested':
+        statusColor = AppColors.blue; statusLabel = s.statusReturnRequested; break;
+      case 'pending_confirm':
+        statusColor = AppColors.orange; statusLabel = s.statusPendingConfirm; break;
+      default:
+        statusColor = Colors.grey; statusLabel = reservation.status;
+    }
+
+    String fmtDate(DateTime d) =>
+        '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: AppColors.blue.withOpacity(0.12),
+                child: Text(st?.avatar ?? '👤', style: const TextStyle(fontSize: 22)),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(studentName,
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                    if (st?.degree != null)
+                      Text(st!.degree!,
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+          const Divider(height: 20),
+          if (st != null) ...[
+            _InfoRow(icon: Icons.phone_outlined, label: s.phone, value: st.phone),
+            _InfoRow(icon: Icons.email_outlined, label: 'Email', value: st.email),
+            if (st.faculty != null && st.faculty!.isNotEmpty)
+              _InfoRow(icon: Icons.school_outlined, label: s.faculty, value: st.faculty!),
+            if (st.direction != null && st.direction!.isNotEmpty)
+              _InfoRow(icon: Icons.trending_up_outlined, label: s.direction, value: st.direction!),
+            if (st.group != null && st.group!.isNotEmpty)
+              _InfoRow(icon: Icons.group_outlined, label: s.group, value: st.group!),
+            const SizedBox(height: 12),
+          ],
+          AppCard(
+            borderColor: statusColor.withOpacity(0.4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    StatusBadge(label: statusLabel, color: statusColor),
+                    const Spacer(),
+                    Text('Bron: ${fmtDate(reservation.reserveDate)}',
+                        style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text('Muddat: ${fmtDate(reservation.dueDate)}',
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                if (reservation.isOverdue)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      '${reservation.daysLeft.abs()} kun kechikdi!',
+                      style: const TextStyle(
+                          fontSize: 12, color: AppColors.red, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  const _InfoRow({required this.icon, required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: Colors.grey),
+          const SizedBox(width: 10),
+          Text(label,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade500, fontWeight: FontWeight.w600)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _BookFormSheet extends StatefulWidget {
   final BookModel? book;
   const _BookFormSheet({this.book});
@@ -639,9 +872,11 @@ class _BookFormSheetState extends State<_BookFormSheet> {
   final _authorCtrl = TextEditingController();
   final _descCtrl   = TextEditingController();
   final _totalCtrl  = TextEditingController();
+  final _imageCtrl  = TextEditingController();
   String _category  = kBookCategories.first;
   String _emoji     = '📖';
   bool   _saving    = false;
+  bool   _imageError = false;
 
   final _emojis = ['📖','📚','🔬','💻','🧠','💡','🌍','🎨','🏛','⚗','📐','🧬'];
 
@@ -654,11 +889,19 @@ class _BookFormSheetState extends State<_BookFormSheet> {
       _authorCtrl.text = b.author;
       _descCtrl.text   = b.description;
       _totalCtrl.text  = '${b.total}';
+      _imageCtrl.text  = b.imageUrl ?? '';
       _category        = b.category;
       _emoji           = b.coverEmoji;
     } else {
       _totalCtrl.text = '1';
     }
+  }
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose(); _authorCtrl.dispose();
+    _descCtrl.dispose();  _totalCtrl.dispose(); _imageCtrl.dispose();
+    super.dispose();
   }
 
   @override
@@ -714,6 +957,81 @@ class _BookFormSheetState extends State<_BookFormSheet> {
                   ),
                 ),
                 const SizedBox(height: 14),
+                // ── Rasm URL ──────────────────────────────────────────
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Preview
+                    Container(
+                      width: 54, height: 70,
+                      margin: const EdgeInsets.only(right: 12, top: 2),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardColor,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                            color: _imageError
+                                ? AppColors.red.withValues(alpha: 0.5)
+                                : Theme.of(context).dividerColor.withValues(alpha: 0.4)),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: _imageCtrl.text.trim().isNotEmpty && !_imageError
+                            ? Image.network(
+                          _imageCtrl.text.trim(),
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) {
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (mounted) setState(() => _imageError = true);
+                            });
+                            return const Icon(Icons.broken_image_outlined,
+                                color: AppColors.red, size: 22);
+                          },
+                        )
+                            : Text(_emoji, style: const TextStyle(fontSize: 28),
+                            textAlign: TextAlign.center),
+                      ),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          TextField(
+                            controller: _imageCtrl,
+                            decoration: InputDecoration(
+                              hintText: 'Rasm URL (ixtiyoriy)',
+                              hintStyle: const TextStyle(fontSize: 12),
+                              prefixIcon: const Icon(Icons.image_outlined, size: 18),
+                              suffixIcon: _imageCtrl.text.trim().isNotEmpty
+                                  ? IconButton(
+                                icon: const Icon(Icons.clear, size: 16),
+                                onPressed: () => setState(() {
+                                  _imageCtrl.clear();
+                                  _imageError = false;
+                                }),
+                              )
+                                  : null,
+                              filled: true,
+                              fillColor: Theme.of(context).cardColor,
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  vertical: 12, horizontal: 12),
+                            ),
+                            onChanged: (_) => setState(() => _imageError = false),
+                          ),
+                          if (_imageError)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4, left: 4),
+                              child: Text("URL noto'g'ri yoki yuklanmadi",
+                                  style: TextStyle(fontSize: 10, color: AppColors.red)),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
                 AppTextField(hint: s.bookTitleHint, controller: _titleCtrl,
                     prefix: const Icon(Icons.book_outlined, size: 18)),
                 const SizedBox(height: 10),
@@ -759,20 +1077,24 @@ class _BookFormSheetState extends State<_BookFormSheet> {
                     if (_titleCtrl.text.trim().isEmpty || _authorCtrl.text.trim().isEmpty) return;
                     setState(() => _saving = true);
                     final total = int.tryParse(_totalCtrl.text.trim()) ?? 1;
+                    final imgUrl = _imageCtrl.text.trim().isEmpty || _imageError
+                        ? null : _imageCtrl.text.trim();
                     if (isEdit) {
                       await app.updateBook(widget.book!.id, {
-                        'title':      _titleCtrl.text.trim(),
-                        'author':     _authorCtrl.text.trim(),
+                        'title':       _titleCtrl.text.trim(),
+                        'author':      _authorCtrl.text.trim(),
                         'description': _descCtrl.text.trim(),
-                        'category':   _category,
-                        'coverEmoji': _emoji,
-                        'total':      total,
+                        'category':    _category,
+                        'coverEmoji':  _emoji,
+                        'total':       total,
+                        'imageUrl':    imgUrl,
                       });
                     } else {
                       await app.addBook(BookModel(
                         id: '', title: _titleCtrl.text.trim(),
                         author: _authorCtrl.text.trim(), category: _category,
-                        coverEmoji: _emoji, description: _descCtrl.text.trim(),
+                        coverEmoji: _emoji, imageUrl: imgUrl,
+                        description: _descCtrl.text.trim(),
                         total: total, available: total, addedDate: DateTime.now(),
                       ));
                     }
@@ -805,15 +1127,17 @@ class _ReservationsScreenState extends State<_ReservationsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final app = context.watch<AppProvider>();
-    final s   = S.of(context);
+    final app  = context.watch<AppProvider>();
+    final s    = S.of(context);
+    final now  = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
 
     // Status bo'yicha filter
     var list = _filter == 'all'
         ? app.reservations
         : app.reservations.where((r) => r.status == _filter).toList();
 
-    // Qidiruv: talaba ismi yoki kitob nomi bo'yicha
+    // Qidiruv
     if (_search.trim().isNotEmpty) {
       final q = _search.toLowerCase();
       list = list.where((r) {
@@ -825,31 +1149,47 @@ class _ReservationsScreenState extends State<_ReservationsScreen> {
       }).toList();
     }
 
-    // Muhim: kutayotganlar va muddati o'tganlar avval
-    list.sort((a, b) {
+    // Aktiv/kutayotgan: hali yopilmagan yoki bugungi
+    // O'tgan: returned va rezervatsiya sanasi bugundan oldin
+    final activeList = list.where((r) =>
+    r.status == 'pending_confirm' ||
+        r.status == 'return_requested' ||
+        r.status == 'active' ||
+        (r.status == 'returned' &&
+            !DateTime(r.reserveDate.year, r.reserveDate.month, r.reserveDate.day)
+                .isBefore(today))
+    ).toList();
+
+    final pastList = list.where((r) =>
+    r.status == 'returned' &&
+        DateTime(r.reserveDate.year, r.reserveDate.month, r.reserveDate.day)
+            .isBefore(today)
+    ).toList();
+
+    // Aktiv ro'yxatni saralash
+    activeList.sort((a, b) {
       const order = {'pending_confirm': 0, 'return_requested': 1, 'active': 2, 'returned': 3};
       final oa = order[a.status] ?? 4;
       final ob = order[b.status] ?? 4;
       if (oa != ob) return oa.compareTo(ob);
-      // Muddati o'tganlar avval
       if (a.isOverdue && !b.isOverdue) return -1;
       if (!a.isOverdue && b.isOverdue) return 1;
       return b.reserveDate.compareTo(a.reserveDate);
     });
+    pastList.sort((a, b) => b.reserveDate.compareTo(a.reserveDate));
 
-    // Pagination
-    final total = list.length;
-    final paged = list.take(_page * _pageSize).toList();
+    // Pagination — faqat aktiv uchun
+    final activeTotal = activeList.length;
+    final activePaged = activeList.take(_page * _pageSize).toList();
 
     final filters = [
-      ('pending_confirm', s.filterNeedsConfirm,  AppColors.orange),
-      ('active',          s.statusActive,         AppColors.green),
-      ('return_requested', s.statusReturnRequested, AppColors.blue),
-      ('returned',        s.statusReturned,       Colors.grey),
-      ('all',             s.all,                  AppColors.accent),
+      ('pending_confirm',  s.filterNeedsConfirm,     AppColors.orange),
+      ('active',           s.statusActive,            AppColors.green),
+      ('return_requested', s.statusReturnRequested,   AppColors.blue),
+      ('returned',         s.statusReturned,          Colors.grey),
+      ('all',              s.all,                     AppColors.accent),
     ];
 
-    // Har bir filter uchun son
     Map<String, int> counts = {
       'all': app.reservations.length,
       for (final f in filters.where((f) => f.$1 != 'all'))
@@ -946,44 +1286,167 @@ class _ReservationsScreenState extends State<_ReservationsScreen> {
           ),
 
           // ── Jami natija ────────────────────────────────────────────
-          if (_search.isNotEmpty || total != app.reservations.length)
+          if (_search.isNotEmpty || (activeTotal + pastList.length) != app.reservations.length)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text('$total ta natija',
+                child: Text('${activeTotal + pastList.length} ta natija',
                     style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
               ),
             ),
 
           // ── Ro'yxat ────────────────────────────────────────────────
           Expanded(
-            child: paged.isEmpty
+            child: (activeList.isEmpty && pastList.isEmpty)
                 ? Center(child: Text(s.reservationNotFound,
                 style: const TextStyle(color: Colors.grey)))
-                : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: paged.length + (paged.length < total ? 1 : 0),
-              itemBuilder: (_, i) {
-                if (i == paged.length) {
-                  // "Ko'proq ko'rsatish" tugmasi
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: TextButton.icon(
-                      onPressed: () => setState(() => _page++),
-                      icon: const Icon(Icons.expand_more_rounded),
-                      label: Text(
-                        'Ko\'proq ko\'rsatish (${total - paged.length} ta qoldi)',
-                        style: const TextStyle(fontSize: 13),
-                      ),
-                    ),
-                  );
-                }
-                return _ReservationTile(reservation: paged[i]);
-              },
+                : _ReservationGroupedList(
+              activePaged: activePaged,
+              activeTotal: activeTotal,
+              pastList: pastList,
+              onLoadMore: () => setState(() => _page++),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Guruhlangan rezervatsiyalar ro'yxati ──────────────────────────────────────
+
+class _ReservationGroupedList extends StatefulWidget {
+  final List<ReservationModel> activePaged;
+  final int activeTotal;
+  final List<ReservationModel> pastList;
+  final VoidCallback onLoadMore;
+  const _ReservationGroupedList({
+    required this.activePaged, required this.activeTotal,
+    required this.pastList, required this.onLoadMore,
+  });
+
+  @override
+  State<_ReservationGroupedList> createState() => _ReservationGroupedListState();
+}
+
+class _ReservationGroupedListState extends State<_ReservationGroupedList> {
+  bool _pastExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        // ── Faol / kutayotgan bronlar ────────────────────────────
+        if (widget.activePaged.isNotEmpty) ...[
+          ...widget.activePaged.map((r) => _ReservationTile(reservation: r)),
+          if (widget.activePaged.length < widget.activeTotal)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: TextButton.icon(
+                onPressed: widget.onLoadMore,
+                icon: const Icon(Icons.expand_more_rounded),
+                label: Text(
+                  "Ko'proq ko'rsatish (${widget.activeTotal - widget.activePaged.length} ta qoldi)",
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
+            ),
+        ],
+
+        // ── O'tgan bronlar (yopilib ketgan) ──────────────────────
+        if (widget.pastList.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: () => setState(() => _pastExpanded = !_pastExpanded),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.history_rounded, size: 14, color: Colors.grey),
+                  const SizedBox(width: 6),
+                  Text(
+                    "O'tgan bronlar (${widget.pastList.length} ta)",
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    _pastExpanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+                    size: 16, color: Colors.grey,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_pastExpanded) ...[
+            const SizedBox(height: 8),
+            ...widget.pastList.take(20).map((r) => _PastReservationTile(reservation: r)),
+            if (widget.pastList.length > 20)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  "+ ${widget.pastList.length - 20} ta ko'rsatilmagan",
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+          ],
+        ],
+        const SizedBox(height: 20),
+      ],
+    );
+  }
+}
+
+// Kichik past rezervatsiya kartasi
+class _PastReservationTile extends StatelessWidget {
+  final ReservationModel reservation;
+  const _PastReservationTile({required this.reservation});
+
+  @override
+  Widget build(BuildContext context) {
+    final app = context.read<AppProvider>();
+    final bookTitle = app.books
+        .where((b) => b.id == reservation.bookId)
+        .map((b) => b.title)
+        .firstOrNull ?? '—';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(reservation.studentName,
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  Text(bookTitle,
+                      style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                ],
+              ),
+            ),
+            Text(
+              '${reservation.reserveDate.day}.${reservation.reserveDate.month}.${reservation.reserveDate.year}',
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade400),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -680,14 +680,32 @@ class _MyBookingsTabState extends State<_MyBookingsTab> {
               child: Text(s.noBookingsDay, style: const TextStyle(color: Colors.grey)),
             ),
           )
-        else
-          ...filtered.map((b) => _SeatBookingCard(booking: b)),
+        else ...[
+            // Faol/kelgusi bronlar katta, o'tgan bronlar kichik
+            ...() {
+              final now = DateTime.now();
+              final today = DateTime(now.year, now.month, now.day);
+              final active = filtered.where((b) =>
+              b.status != 'cancelled' &&
+                  !b.date.isBefore(today)).toList();
+              final past = filtered.where((b) =>
+              b.status == 'cancelled' ||
+                  b.date.isBefore(today)).toList();
+              return [
+                ...active.map((b) => _SeatBookingCard(booking: b)),
+                if (past.isNotEmpty) _PastSeatSection(bookings: past),
+              ];
+            }(),
+          ],
 
         // ── Bu haftadan tashqari bronlar ──────────────────────────────
         if (_selectedDayIndex < 0) ...[
               () {
+            final now = DateTime.now();
+            final today = DateTime(now.year, now.month, now.day);
             final outside = bookings
                 .where((b) => b.date.isBefore(_weekStart) || !b.date.isBefore(weekEnd))
+                .where((b) => !b.date.isBefore(today)) // faqat kelgusi
                 .toList();
             if (outside.isEmpty) return const SizedBox.shrink();
             return Column(
@@ -791,6 +809,111 @@ class _SeatBookingCard extends StatelessWidget {
                 label: isCancelled ? s.statusReturned : s.statusActive,
                 color: color,
               ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── O'tgan xona bronlari (kichik) ────────────────────────────────────────────
+
+class _PastSeatSection extends StatefulWidget {
+  final List<SeatBookingModel> bookings;
+  const _PastSeatSection({required this.bookings});
+
+  @override
+  State<_PastSeatSection> createState() => _PastSeatSectionState();
+}
+
+class _PastSeatSectionState extends State<_PastSeatSection> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        const SizedBox(height: 8),
+        GestureDetector(
+          onTap: () => setState(() => _expanded = !_expanded),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.grey.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.history_rounded, size: 14, color: Colors.grey),
+                const SizedBox(width: 6),
+                Text(
+                  "O'tgan bronlar (${widget.bookings.length} ta)",
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey),
+                ),
+                const Spacer(),
+                Icon(
+                  _expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+                  size: 16, color: Colors.grey,
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (_expanded) ...[
+          const SizedBox(height: 6),
+          ...widget.bookings.map((b) => _PastSeatTile(booking: b)),
+        ],
+      ],
+    );
+  }
+}
+
+class _PastSeatTile extends StatelessWidget {
+  final SeatBookingModel booking;
+  const _PastSeatTile({required this.booking});
+
+  static const _dayNames = ['Du', 'Se', 'Ch', 'Pa', 'Ju', 'Sh', 'Ya'];
+
+  @override
+  Widget build(BuildContext context) {
+    final isCancelled = booking.status == 'cancelled';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 5),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+              color: Theme.of(context).dividerColor.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          children: [
+            Text(
+              '${_dayNames[booking.date.weekday - 1]} ${booking.date.day}',
+              style: TextStyle(
+                  fontSize: 11, fontWeight: FontWeight.w700,
+                  color: Colors.grey.shade500),
+            ),
+            const SizedBox(width: 10),
+            Text(booking.roomName,
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            const Spacer(),
+            Text('${booking.startTime}–${booking.endTime}',
+                style: TextStyle(fontSize: 10, color: Colors.grey.shade400)),
+            if (isCancelled) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.grey.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Text('bekor',
+                    style: TextStyle(fontSize: 9, color: Colors.grey)),
+              ),
+            ],
           ],
         ),
       ),

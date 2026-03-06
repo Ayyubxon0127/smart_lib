@@ -118,10 +118,12 @@ class AppTextField extends StatelessWidget {
   final bool obscure;
   final int maxLines;
   final Widget? prefix;
+  final Widget? suffix;
 
   const AppTextField({
     super.key, required this.hint, this.controller,
-    this.keyboardType, this.obscure = false, this.maxLines = 1, this.prefix,
+    this.keyboardType, this.obscure = false, this.maxLines = 1,
+    this.prefix, this.suffix,
   });
 
   @override
@@ -136,6 +138,7 @@ class AppTextField extends StatelessWidget {
       decoration: InputDecoration(
         hintText: hint,
         prefixIcon: prefix,
+        suffixIcon: suffix,
         filled: true,
         fillColor: isDark ? const Color(0xFF0F1923) : const Color(0xFFF0F2F5),
         border: OutlineInputBorder(

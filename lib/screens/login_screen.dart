@@ -28,9 +28,47 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _login() async {
     setState(() => _errorMsg = null);
+    final s = S.read(context);
+    final email = _emailCtrl.text.trim();
+    final pass  = _passCtrl.text; // parolni trim qilmaymiz
+
+    if (email.isEmpty) {
+      setState(() => _errorMsg = s.emptyEmail);
+      return;
+    }
+    if (!email.contains('@') || !email.contains('.')) {
+      setState(() => _errorMsg = s.invalidEmail);
+      return;
+    }
+    if (pass.isEmpty) {
+      setState(() => _errorMsg = s.emptyPassword);
+      return;
+    }
+    if (pass.length < 6) {
+      setState(() => _errorMsg = s.passwordTooShort);
+      return;
+    }
+
     final app = context.read<AppProvider>();
-    final ok = await app.login(_emailCtrl.text.trim(), _passCtrl.text.trim());
-    if (!ok && mounted) setState(() => _errorMsg = app.error ?? S.read(context).errorOccurred);
+    final ok = await app.login(email, pass);
+    if (!ok && mounted) {
+      setState(() => _errorMsg = _friendlyError(app.error ?? '', s));
+    }
+  }
+
+  String _friendlyError(String error, S s) {
+    final e = error.toLowerCase();
+    if (e.contains('invalid-credential') ||
+        e.contains('wrong-password') ||
+        e.contains('user-not-found') ||
+        e.contains('invalid-email') && e.contains('password')) {
+      return s.wrongCredentials;
+    }
+    if (e.contains('invalid-email')) return s.invalidEmail;
+    if (e.contains('too-many-requests')) return s.tooManyRequests;
+    if (e.contains('user-disabled')) return s.userDisabled;
+    if (e.contains('network-request-failed') || e.contains('network')) return s.networkError;
+    return s.wrongCredentials; // noma'lum xatoliklar uchun ham qulay xabar
   }
 
   @override
@@ -92,6 +130,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       controller: _passCtrl,
                       obscure: _obscure,
                       prefix: const Icon(Icons.lock_outline, size: 18),
+                      suffix: IconButton(
+                        icon: Icon(
+                          _obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                          size: 18,
+                          color: Colors.grey,
+                        ),
+                        onPressed: () => setState(() => _obscure = !_obscure),
+                      ),
                     ),
                     const SizedBox(height: 20),
                     if (_errorMsg != null) ...[

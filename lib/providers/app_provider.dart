@@ -168,7 +168,7 @@ class AppProvider extends ChangeNotifier {
     final data = BookModel(
       id: ref.id, title: book.title, author: book.author,
       category: book.category, coverEmoji: book.coverEmoji,
-      imageUrl: null, description: book.description,
+      imageUrl: book.imageUrl?.trim().isEmpty == true ? null : book.imageUrl?.trim(), description: book.description,
       total: book.total, available: book.total, addedDate: DateTime.now(),
     );
     await ref.set(data.toFirestore());
@@ -295,6 +295,21 @@ class AppProvider extends ChangeNotifier {
         .limit(1)
         .get();
     return snap.docs.isNotEmpty;
+  }
+
+  Future<void> incrementBookViews(String bookId) async {
+    await _db.collection('books').doc(bookId).update({'views': FieldValue.increment(1)});
+    final i = _books.indexWhere((b) => b.id == bookId);
+    if (i >= 0) {
+      final b = _books[i];
+      _books[i] = BookModel(
+        id: b.id, title: b.title, author: b.author, category: b.category,
+        coverEmoji: b.coverEmoji, imageUrl: b.imageUrl, description: b.description,
+        total: b.total, available: b.available, rating: b.rating,
+        reviewCount: b.reviewCount, views: b.views + 1, addedDate: b.addedDate,
+      );
+      notifyListeners();
+    }
   }
 
   Future<void> addReview(String bookId, int rating, String comment) async {

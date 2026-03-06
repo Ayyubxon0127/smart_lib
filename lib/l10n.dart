@@ -104,7 +104,14 @@ class S {
   String get password => _t('Parol', 'Password', 'Пароль');
   String get noAccount => _t("Hisobingiz yo'qmi? ", "Don't have an account? ", 'Нет аккаунта? ');
   String get registerLink => _t("Ro'yhatdan o'tish", 'Register', 'Зарегистрироваться');
-  String get errorOccurred => _t('Xatolik yuz berdi', 'An error occurred', 'Произошла ошибка');
+  String get errorOccurred    => _t('Xatolik yuz berdi', 'An error occurred', 'Произошла ошибка');
+  String get wrongCredentials => _t('Email yoki parol noto\'g\'ri', 'Incorrect email or password', 'Неверный email или пароль');
+  String get invalidEmail     => _t('Email noto\'g\'ri formatda', 'Invalid email format', 'Неверный формат email');
+  String get tooManyRequests  => _t('Ko\'p urinish! Biroz kuting', 'Too many attempts! Please wait', 'Слишком много попыток! Подождите');
+  String get userDisabled     => _t('Bu hisob bloklangan', 'This account is disabled', 'Этот аккаунт заблокирован');
+  String get networkError     => _t('Internet aloqasini tekshiring', 'Check your internet connection', 'Проверьте интернет-соединение');
+  String get emptyEmail       => _t('Email kiritilmagan', 'Email is required', 'Введите email');
+  String get emptyPassword    => _t('Parol kiritilmagan', 'Password is required', 'Введите пароль');
 
   // Register screen
   String get register => _t("Ro'yhatdan o'tish", 'Register', 'Зарегистрироваться');
@@ -231,6 +238,9 @@ class S {
   String get yourQuestion   => _t('Savolingizni yozing...', 'Write your question...', 'Напишите ваш вопрос...');
   String get yourAnswer     => _t('Javobingizni yozing...', 'Write your answer...', 'Напишите ваш ответ...');
   String reviewCount(int n) => _t('$n ta sharh', '$n reviews', '$n отзывов');
+  String viewsCount(int n) => _t('$n marta ko\'rilgan', '$n views', '$n просмотров');
+  String get borrowedBy => _t('Kim olgan', 'Borrowed by', 'Взял(а)');
+  String get studentDetails => _t('Talaba ma\'lumotlari', 'Student details', 'Данные студента');
 
   String _t(String uz, String en, String ru) {
     if (lang == 'ru') return ru;

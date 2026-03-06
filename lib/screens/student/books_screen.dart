@@ -121,13 +121,20 @@ class _BookCard extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(book.author, style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
                 const SizedBox(height: 6),
-                if (book.rating > 0)
+                if (book.rating > 0 || book.views > 0)
                   Row(
                     children: [
-                      const Icon(Icons.star_rounded, size: 14, color: Colors.amber),
-                      const SizedBox(width: 3),
-                      Text(book.rating.toStringAsFixed(1), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                      const SizedBox(width: 6),
+                      if (book.rating > 0) ...[
+                        const Icon(Icons.star_rounded, size: 14, color: Colors.amber),
+                        const SizedBox(width: 3),
+                        Text(book.rating.toStringAsFixed(1), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                        const SizedBox(width: 8),
+                      ],
+                      if (book.views > 0) ...[
+                        Icon(Icons.visibility_outlined, size: 13, color: Colors.grey.shade500),
+                        const SizedBox(width: 3),
+                        Text('${book.views}', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                      ],
                     ],
                   ),
                 const SizedBox(height: 4),
@@ -193,6 +200,10 @@ class _BookDetailPageState extends State<BookDetailPage> with SingleTickerProvid
     super.initState();
     _tabs = TabController(length: 3, vsync: this);
     _book = widget.book;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final app = context.read<AppProvider>();
+      if (app.role == 'student') app.incrementBookViews(_book.id);
+    });
   }
 
   @override
@@ -245,6 +256,7 @@ class _BookInfoTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = S.read(context);
     final app = context.read<AppProvider>();
+    final isLibrarian = app.role == 'librarian';
 
     return ListView(
       padding: const EdgeInsets.all(20),
@@ -268,26 +280,38 @@ class _BookInfoTab extends StatelessWidget {
             ],
           ),
         ],
+        if (book.views > 0) ...[
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.visibility_outlined, size: 15, color: Colors.grey.shade500),
+              const SizedBox(width: 5),
+              Text(s.viewsCount(book.views), style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+            ],
+          ),
+        ],
         const SizedBox(height: 16),
         Text(book.description, style: const TextStyle(fontSize: 13, height: 1.6)),
         const SizedBox(height: 24),
-        AccentButton(
-          label: book.available > 0 ? s.reserveBook : s.notAvailable,
-          icon: Icons.bookmark_add_outlined,
-          onTap: book.available > 0 ? () async {
-            final error = await app.reserveBook(book.id);
-            if (context.mounted) {
-              if (error != null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('❌ $error'), backgroundColor: Colors.red.shade700));
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(s.reserveSuccessFull)));
-                onReserved();
+        if (!isLibrarian)
+          AccentButton(
+            label: book.available > 0 ? s.reserveBook : s.notAvailable,
+            icon: Icons.bookmark_add_outlined,
+            onTap: book.available > 0 ? () async {
+              final error = await app.reserveBook(book.id);
+              if (context.mounted) {
+                if (error != null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('❌ $error'), backgroundColor: Colors.red.shade700));
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(s.reserveSuccessFull)));
+                  onReserved();
+                }
               }
-            }
-          } : null,
-        ),
+            } : null,
+          ),
       ],
     );
   }
