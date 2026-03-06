@@ -201,6 +201,14 @@ class S {
   String get blocked          => _t('Bloklangan', 'Blocked', 'Заблокировано');
   String get selectTimeFirst  => _t('Vaqtni tanlang', 'Select time first', 'Сначала выберите время');
   String get roomBookings     => _t('Xona bronlari', 'Room bookings', 'Брони комнаты');
+  String get weeklyView       => _t('Haftalik jadval', 'Weekly schedule', 'Недельное расписание');
+  String get dayView          => _t('Kunlik', 'Daily', 'Дневной');
+  String get thisWeek         => _t('Bu hafta', 'This week', 'Эта неделя');
+  String get prevWeek         => _t('Oldingi hafta', 'Previous week', 'Предыдущая неделя');
+  String get nextWeek         => _t('Keyingi hafta', 'Next week', 'Следующая неделя');
+  String get noBookingsDay    => _t('Bu kunda bron yo\'q', 'No bookings this day', 'Нет броней в этот день');
+  String weekBookingCount(int n) => _t('$n ta bron', '$n bookings', '$n броней');
+  String get selectDayToBook  => _t('Kun tanlang va bron qiling', 'Select a day to book', 'Выберите день для бронирования');
 
   // Reviews & Questions
   String get reviews        => _t('Sharhlar', 'Reviews', 'Отзывы');

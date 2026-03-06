@@ -20,21 +20,24 @@ class StudentMain extends StatefulWidget {
 class _StudentMainState extends State<StudentMain> {
   int _index = 0;
 
-  final _screens = const [
-    StudentHomeScreen(),
-    BooksScreen(),
-    LibraryBookingScreen(),
-    MyBooksScreen(),
-    NewsScreen(),
-    SettingsScreen(),
-  ];
+  void _goTo(int index) => setState(() => _index = index);
 
   @override
   Widget build(BuildContext context) {
     context.watch<AppProvider>();
     final s = S.of(context);
+
+    final screens = [
+      StudentHomeScreen(onNavigate: _goTo),
+      const BooksScreen(),
+      const LibraryBookingScreen(),
+      const MyBooksScreen(),
+      const NewsScreen(),
+      const SettingsScreen(),
+    ];
+
     return Scaffold(
-      body: IndexedStack(index: _index, children: _screens),
+      body: IndexedStack(index: _index, children: screens),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),

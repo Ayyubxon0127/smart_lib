@@ -11,6 +11,12 @@ import '../../constants.dart';
 import '../../l10n.dart';
 import '../student/settings_screen.dart';
 
+// ─── Navigatsiya indekslari ───────────────────────────────────────────────────
+const int _kLibBooksIndex = 1;
+const int _kLibResIndex   = 2;
+const int _kLibRoomsIndex = 3;
+const int _kLibNewsIndex  = 4;
+
 // ─── Main scaffold ────────────────────────────────────────────────────────────
 
 class LibrarianMain extends StatefulWidget {
@@ -23,21 +29,22 @@ class LibrarianMain extends StatefulWidget {
 class _LibrarianMainState extends State<LibrarianMain> {
   int _index = 0;
 
-  final _screens = const [
-    _DashboardScreen(),
-    _BooksScreen(),
-    _ReservationsScreen(),
-    _RoomsScreen(),
-    _AnnouncementsScreen(),
-    SettingsScreen(),
-  ];
+  void _goTo(int index) => setState(() => _index = index);
 
   @override
   Widget build(BuildContext context) {
     context.watch<AppProvider>();
     final s = S.of(context);
+    final screens = [
+      _DashboardScreen(onNavigate: _goTo),
+      const _BooksScreen(),
+      const _ReservationsScreen(),
+      const _RoomsScreen(),
+      const _AnnouncementsScreen(),
+      const SettingsScreen(),
+    ];
     return Scaffold(
-      body: IndexedStack(index: _index, children: _screens),
+      body: IndexedStack(index: _index, children: screens),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
@@ -60,16 +67,17 @@ class _LibrarianMainState extends State<LibrarianMain> {
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 class _DashboardScreen extends StatelessWidget {
-  const _DashboardScreen();
+  final void Function(int)? onNavigate;
+  const _DashboardScreen({this.onNavigate});
 
   @override
   Widget build(BuildContext context) {
-    final app         = context.watch<AppProvider>();
-    final s           = S.of(context);
-    final pending     = app.reservations.where((r) => r.status == 'pending_confirm').length;
-    final active      = app.reservations.where((r) => r.status == 'active').length;
-    final returnReq   = app.reservations.where((r) => r.status == 'return_requested').length;
-    final overdue     = app.reservations.where((r) => r.isOverdue).length;
+    final app       = context.watch<AppProvider>();
+    final s         = S.of(context);
+    final pending   = app.reservations.where((r) => r.status == 'pending_confirm').length;
+    final active    = app.reservations.where((r) => r.status == 'active').length;
+    final returnReq = app.reservations.where((r) => r.status == 'return_requested').length;
+    final overdue   = app.reservations.where((r) => r.isOverdue).length;
 
     return Scaffold(
       appBar: AppBar(
@@ -89,7 +97,7 @@ class _DashboardScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // Greeting
+          // ── Salom kartasi ─────────────────────────────────────────
           AppCard(
             child: Row(
               children: [
@@ -117,7 +125,41 @@ class _DashboardScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          // Stats grid
+          // ── Tezkor havolalar ──────────────────────────────────────
+          Row(
+            children: [
+              _QuickTile(
+                icon: Icons.menu_book_rounded,
+                label: s.navBooks,
+                color: AppColors.blue,
+                onTap: () => onNavigate?.call(_kLibBooksIndex),
+              ),
+              const SizedBox(width: 10),
+              _QuickTile(
+                icon: Icons.bookmark_rounded,
+                label: s.navReservations,
+                color: AppColors.green,
+                onTap: () => onNavigate?.call(_kLibResIndex),
+              ),
+              const SizedBox(width: 10),
+              _QuickTile(
+                icon: Icons.meeting_room_rounded,
+                label: s.navRooms,
+                color: AppColors.purple,
+                onTap: () => onNavigate?.call(_kLibRoomsIndex),
+              ),
+              const SizedBox(width: 10),
+              _QuickTile(
+                icon: Icons.campaign_rounded,
+                label: s.navNews,
+                color: AppColors.orange,
+                onTap: () => onNavigate?.call(_kLibNewsIndex),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // ── Statistika grid ────────────────────────────────────────
           GridView.count(
             crossAxisCount: 2,
             crossAxisSpacing: 12,
@@ -126,51 +168,164 @@ class _DashboardScreen extends StatelessWidget {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             children: [
-              _StatCard(icon: Icons.menu_book_rounded,   color: AppColors.blue,   label: s.totalBooks,              value: '${app.books.length}'),
-              _StatCard(icon: Icons.people_outlined,     color: AppColors.purple, label: s.studentsLabel,           value: '${app.students.length}'),
-              _StatCard(icon: Icons.bookmark_rounded,    color: AppColors.green,  label: s.activeReservations,      value: '$active'),
-              _StatCard(icon: Icons.pending_outlined,    color: AppColors.orange, label: s.statusPendingConfirm,    value: '$pending'),
+              _StatCard(
+                icon: Icons.menu_book_rounded, color: AppColors.blue,
+                label: s.totalBooks, value: '${app.books.length}',
+                onTap: () => onNavigate?.call(_kLibBooksIndex),
+              ),
+              _StatCard(
+                icon: Icons.people_outlined, color: AppColors.purple,
+                label: s.studentsLabel, value: '${app.students.length}',
+              ),
+              _StatCard(
+                icon: Icons.bookmark_rounded, color: AppColors.green,
+                label: s.activeReservations, value: '$active',
+                onTap: () => onNavigate?.call(_kLibResIndex),
+              ),
+              _StatCard(
+                icon: Icons.pending_outlined, color: AppColors.orange,
+                label: s.statusPendingConfirm, value: '$pending',
+                onTap: () => onNavigate?.call(_kLibResIndex),
+              ),
             ],
           ),
           const SizedBox(height: 12),
 
-          // Alerts
-          if (overdue > 0)
-            AppCard(
-              borderColor: AppColors.red.withOpacity(0.5),
-              child: Row(
-                children: [
-                  const Icon(Icons.warning_amber_rounded, color: AppColors.red),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(s.overdueCount(overdue),
-                        style: const TextStyle(color: AppColors.red, fontWeight: FontWeight.w700)),
-                  ),
-                ],
+          // ── Ogohlantirishlar ──────────────────────────────────────
+          if (overdue > 0) ...[
+            InkWell(
+              onTap: () => onNavigate?.call(_kLibResIndex),
+              borderRadius: BorderRadius.circular(14),
+              child: AppCard(
+                borderColor: AppColors.red.withOpacity(0.5),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: AppColors.red),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(s.overdueCount(overdue),
+                          style: const TextStyle(color: AppColors.red, fontWeight: FontWeight.w700)),
+                    ),
+                    const Icon(Icons.chevron_right_rounded, color: AppColors.red, size: 18),
+                  ],
+                ),
               ),
             ),
-          if (returnReq > 0) ...[
             const SizedBox(height: 8),
-            AppCard(
-              borderColor: AppColors.blue.withOpacity(0.5),
-              child: Row(
-                children: [
-                  const Icon(Icons.assignment_return_outlined, color: AppColors.blue),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(s.returnReqCount(returnReq),
-                        style: const TextStyle(color: AppColors.blue, fontWeight: FontWeight.w700)),
-                  ),
-                ],
+          ],
+          if (returnReq > 0) ...[
+            InkWell(
+              onTap: () => onNavigate?.call(_kLibResIndex),
+              borderRadius: BorderRadius.circular(14),
+              child: AppCard(
+                borderColor: AppColors.blue.withOpacity(0.5),
+                child: Row(
+                  children: [
+                    const Icon(Icons.assignment_return_outlined, color: AppColors.blue),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(s.returnReqCount(returnReq),
+                          style: const TextStyle(color: AppColors.blue, fontWeight: FontWeight.w700)),
+                    ),
+                    const Icon(Icons.chevron_right_rounded, color: AppColors.blue, size: 18),
+                  ],
+                ),
               ),
             ),
+            const SizedBox(height: 8),
           ],
 
-          // Recent reservations
-          SectionTitle(label: s.recentReservations, icon: Icons.history_outlined),
-          ...app.reservations.take(5).map((r) => _MiniReservationTile(reservation: r)),
+          // ── So'nggi rezervatsiyalar ───────────────────────────────
+          _LibSectionHeader(
+            label: s.recentReservations,
+            icon: Icons.history_outlined,
+            onTap: () => onNavigate?.call(_kLibResIndex),
+          ),
+          ...app.reservations.take(5).map((r) => InkWell(
+            onTap: () => onNavigate?.call(_kLibResIndex),
+            borderRadius: BorderRadius.circular(14),
+            child: _MiniReservationTile(reservation: r),
+          )),
           const SizedBox(height: 20),
         ],
+      ),
+    );
+  }
+}
+
+// ── Sarlavha + "Barchasi →" (admin) ──────────────────────────────────────────
+
+class _LibSectionHeader extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback? onTap;
+  const _LibSectionHeader({required this.label, required this.icon, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 8, 4, 10),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: AppColors.accent),
+          const SizedBox(width: 6),
+          Expanded(child: Text(label,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800))),
+          if (onTap != null)
+            GestureDetector(
+              onTap: onTap,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Barchasi',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
+                          color: AppColors.accent.withOpacity(0.8))),
+                  const Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.accent),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Tezkor havola tugmasi (admin) ─────────────────────────────────────────────
+
+class _QuickTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+  const _QuickTile({required this.icon, required this.label,
+    required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: AppCard(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Column(
+            children: [
+              Container(
+                width: 36, height: 36,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: color, size: 18),
+              ),
+              const SizedBox(height: 6),
+              Text(label,
+                  style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700),
+                  textAlign: TextAlign.center,
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -180,32 +335,38 @@ class _StatCard extends StatelessWidget {
   final IconData icon;
   final Color color;
   final String label, value;
+  final VoidCallback? onTap;
 
-  const _StatCard({required this.icon, required this.color, required this.label, required this.value});
+  const _StatCard({required this.icon, required this.color,
+    required this.label, required this.value, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Container(
-            width: 28, height: 28,
-            decoration: BoxDecoration(
-                color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
-            child: Icon(icon, color: color, size: 14),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-              Text(label, style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
-                  overflow: TextOverflow.ellipsis, maxLines: 2),
-            ],
-          ),
-        ],
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: AppCard(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Container(
+              width: 28, height: 28,
+              decoration: BoxDecoration(
+                  color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+              child: Icon(icon, color: color, size: 14),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                Text(label, style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
+                    overflow: TextOverflow.ellipsis, maxLines: 2),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -637,24 +798,63 @@ class _ReservationsScreen extends StatefulWidget {
 }
 
 class _ReservationsScreenState extends State<_ReservationsScreen> {
-  String _filter = 'all';
+  String _filter  = 'pending_confirm'; // default: tasdiqlash kutayotganlar
+  String _search  = '';
+  static const int _pageSize = 15;
+  int _page = 1;
 
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppProvider>();
     final s   = S.of(context);
 
-    final filtered = _filter == 'all'
+    // Status bo'yicha filter
+    var list = _filter == 'all'
         ? app.reservations
         : app.reservations.where((r) => r.status == _filter).toList();
 
+    // Qidiruv: talaba ismi yoki kitob nomi bo'yicha
+    if (_search.trim().isNotEmpty) {
+      final q = _search.toLowerCase();
+      list = list.where((r) {
+        final bookTitle = app.books
+            .where((b) => b.id == r.bookId)
+            .map((b) => b.title.toLowerCase())
+            .firstOrNull ?? '';
+        return r.studentName.toLowerCase().contains(q) || bookTitle.contains(q);
+      }).toList();
+    }
+
+    // Muhim: kutayotganlar va muddati o'tganlar avval
+    list.sort((a, b) {
+      const order = {'pending_confirm': 0, 'return_requested': 1, 'active': 2, 'returned': 3};
+      final oa = order[a.status] ?? 4;
+      final ob = order[b.status] ?? 4;
+      if (oa != ob) return oa.compareTo(ob);
+      // Muddati o'tganlar avval
+      if (a.isOverdue && !b.isOverdue) return -1;
+      if (!a.isOverdue && b.isOverdue) return 1;
+      return b.reserveDate.compareTo(a.reserveDate);
+    });
+
+    // Pagination
+    final total = list.length;
+    final paged = list.take(_page * _pageSize).toList();
+
     final filters = [
-      ('all', s.all),
-      ('pending_confirm', s.filterNeedsConfirm),
-      ('active', s.statusActive),
-      ('return_requested', s.statusReturnRequested),
-      ('returned', s.statusReturned),
+      ('pending_confirm', s.filterNeedsConfirm,  AppColors.orange),
+      ('active',          s.statusActive,         AppColors.green),
+      ('return_requested', s.statusReturnRequested, AppColors.blue),
+      ('returned',        s.statusReturned,       Colors.grey),
+      ('all',             s.all,                  AppColors.accent),
     ];
+
+    // Har bir filter uchun son
+    Map<String, int> counts = {
+      'all': app.reservations.length,
+      for (final f in filters.where((f) => f.$1 != 'all'))
+        f.$1: app.reservations.where((r) => r.status == f.$1).length,
+    };
 
     return Scaffold(
       appBar: AppBar(
@@ -662,12 +862,39 @@ class _ReservationsScreenState extends State<_ReservationsScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
-            onPressed: () => app.fetchReservations(),
+            onPressed: () async {
+              await app.fetchReservations();
+              await app.fetchBooks();
+            },
           ),
         ],
       ),
       body: Column(
         children: [
+          // ── Qidiruv ────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: TextField(
+              onChanged: (v) => setState(() { _search = v; _page = 1; }),
+              decoration: InputDecoration(
+                hintText: '${s.searchHint} (talaba, kitob...)',
+                prefixIcon: const Icon(Icons.search, size: 18),
+                filled: true,
+                fillColor: Theme.of(context).cardColor,
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                suffixIcon: _search.isNotEmpty
+                    ? IconButton(
+                  icon: const Icon(Icons.clear, size: 16),
+                  onPressed: () => setState(() { _search = ''; _page = 1; }),
+                )
+                    : null,
+              ),
+            ),
+          ),
+
+          // ── Filter chiplari (son badge bilan) ──────────────────────
           SizedBox(
             height: 48,
             child: ListView.separated(
@@ -676,35 +903,84 @@ class _ReservationsScreenState extends State<_ReservationsScreen> {
               itemCount: filters.length,
               separatorBuilder: (_, __) => const SizedBox(width: 8),
               itemBuilder: (_, i) {
-                final active = _filter == filters[i].$1;
+                final f = filters[i];
+                final isActive = _filter == f.$1;
+                final cnt = counts[f.$1] ?? 0;
                 return GestureDetector(
-                  onTap: () => setState(() => _filter = filters[i].$1),
+                  onTap: () => setState(() { _filter = f.$1; _page = 1; }),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: active ? AppColors.accent : Theme.of(context).cardColor,
+                      color: isActive ? f.$3 : Theme.of(context).cardColor,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                          color: active
-                              ? AppColors.accent
-                              : Theme.of(context).dividerColor.withOpacity(0.5)),
+                          color: isActive ? f.$3 : Theme.of(context).dividerColor.withOpacity(0.5)),
                     ),
-                    child: Text(filters[i].$2,
-                        style: TextStyle(
-                            fontSize: 12, fontWeight: FontWeight.w700,
-                            color: active ? Colors.black : Theme.of(context).textTheme.bodySmall?.color)),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(f.$2,
+                            style: TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.w700,
+                                color: isActive ? Colors.white : Theme.of(context).textTheme.bodySmall?.color)),
+                        if (cnt > 0 && f.$1 != 'all') ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: isActive ? Colors.white.withOpacity(0.3) : f.$3.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text('$cnt',
+                                style: TextStyle(
+                                    fontSize: 10, fontWeight: FontWeight.w800,
+                                    color: isActive ? Colors.white : f.$3)),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                 );
               },
             ),
           ),
+
+          // ── Jami natija ────────────────────────────────────────────
+          if (_search.isNotEmpty || total != app.reservations.length)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text('$total ta natija',
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+              ),
+            ),
+
+          // ── Ro'yxat ────────────────────────────────────────────────
           Expanded(
-            child: filtered.isEmpty
-                ? Center(child: Text(s.reservationNotFound, style: const TextStyle(color: Colors.grey)))
+            child: paged.isEmpty
+                ? Center(child: Text(s.reservationNotFound,
+                style: const TextStyle(color: Colors.grey)))
                 : ListView.builder(
               padding: const EdgeInsets.all(16),
-              itemCount: filtered.length,
-              itemBuilder: (_, i) => _ReservationTile(reservation: filtered[i]),
+              itemCount: paged.length + (paged.length < total ? 1 : 0),
+              itemBuilder: (_, i) {
+                if (i == paged.length) {
+                  // "Ko'proq ko'rsatish" tugmasi
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: TextButton.icon(
+                      onPressed: () => setState(() => _page++),
+                      icon: const Icon(Icons.expand_more_rounded),
+                      label: Text(
+                        'Ko\'proq ko\'rsatish (${total - paged.length} ta qoldi)',
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ),
+                  );
+                }
+                return _ReservationTile(reservation: paged[i]);
+              },
             ),
           ),
         ],
@@ -726,11 +1002,12 @@ class _ReservationTileState extends State<_ReservationTile> {
 
   @override
   Widget build(BuildContext context) {
-    final app     = context.watch<AppProvider>();
-    final s       = S.of(context);
-    final res     = widget.reservation;
+    final app      = context.watch<AppProvider>();
+    final s        = S.of(context);
+    final res      = widget.reservation;
     final bookList = app.books.where((b) => b.id == res.bookId);
-    final bookTitle = bookList.isNotEmpty ? bookList.first.title : s.book;
+    final book     = bookList.isNotEmpty ? bookList.first : null;
+    final bookTitle = book?.title ?? s.book;
     final isOverdue = res.isOverdue;
 
     const statusColors = {
@@ -752,33 +1029,71 @@ class _ReservationTileState extends State<_ReservationTile> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: AppCard(
-        borderColor: isOverdue ? AppColors.red.withOpacity(0.5) : null,
+        borderColor: isOverdue
+            ? AppColors.red.withOpacity(0.5)
+            : res.status == 'pending_confirm'
+            ? AppColors.orange.withOpacity(0.4)
+            : null,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ── Talaba + kitob ──────────────────────────────────────
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Kitob emoji
+                Container(
+                  width: 44, height: 54,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(book?.coverEmoji ?? '📖',
+                      style: const TextStyle(fontSize: 22)),
+                ),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(res.studentName,
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+                      // Talaba ismi — yaqqol ko'rinadi
+                      Row(
+                        children: [
+                          const Icon(Icons.person_outline, size: 14, color: AppColors.accent),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(res.studentName,
+                                style: const TextStyle(
+                                    fontSize: 14, fontWeight: FontWeight.w800)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      // Kitob nomi
                       Text(bookTitle,
-                          style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                              fontWeight: FontWeight.w600),
                           maxLines: 2),
                     ],
                   ),
                 ),
+                const SizedBox(width: 8),
                 StatusBadge(label: label, color: color),
               ],
             ),
             const SizedBox(height: 8),
+
+            // ── Sanalar ─────────────────────────────────────────────
             Row(children: [
               Icon(Icons.calendar_today_outlined, size: 12, color: Colors.grey.shade500),
               const SizedBox(width: 4),
-              Text('${res.reserveDate.day}.${res.reserveDate.month}.${res.reserveDate.year}',
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+              Text(
+                '${res.reserveDate.day}.${res.reserveDate.month}.${res.reserveDate.year}',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+              ),
               const SizedBox(width: 12),
               Icon(Icons.timer_outlined, size: 12,
                   color: isOverdue ? AppColors.red : Colors.grey.shade500),
@@ -786,35 +1101,95 @@ class _ReservationTileState extends State<_ReservationTile> {
               Text(
                 isOverdue
                     ? s.daysOverdue(res.daysLeft.abs())
-                    : s.dueDateLabel('${res.dueDate.day}.${res.dueDate.month}.${res.dueDate.year}'),
+                    : s.dueDateLabel(
+                    '${res.dueDate.day}.${res.dueDate.month}.${res.dueDate.year}'),
                 style: TextStyle(
                     fontSize: 11,
                     color: isOverdue ? AppColors.red : Colors.grey.shade500,
                     fontWeight: FontWeight.w600),
               ),
             ]),
+
+            // ── Harakatlar tugmalari ─────────────────────────────────
             if (res.status == 'pending_confirm' || res.status == 'return_requested') ...[
               const SizedBox(height: 10),
-              Row(children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _loading ? null : () async {
-                      setState(() => _loading = true);
-                      await app.updateReservationStatus(res.id, 'active');
-                      if (mounted) setState(() => _loading = false);
-                    },
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppColors.green),
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+
+              // pending_confirm: "Kitobni berdim" — kimga berishi aniq ko'rinadi
+              if (res.status == 'pending_confirm')
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.orange.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.orange.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.info_outline_rounded,
+                              size: 14, color: AppColors.orange),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '«$bookTitle» kitobini ${res.studentName}ga berishni tasdiqlaysizmi?',
+                              style: const TextStyle(
+                                  fontSize: 12, color: AppColors.orange,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    child: Text(
-                      res.status == 'pending_confirm' ? s.confirm : s.accept,
-                      style: const TextStyle(color: AppColors.green, fontWeight: FontWeight.w700, fontSize: 12),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: _loading ? null : () async {
+                        setState(() => _loading = true);
+                        await app.updateReservationStatus(res.id, 'active');
+                        if (mounted) setState(() => _loading = false);
+                      },
+                      icon: _loading
+                          ? const SizedBox(
+                          width: 14, height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.check_circle_outline, size: 16),
+                      label: Text(s.confirm,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w700, fontSize: 13)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.green,
+                        side: const BorderSide(color: AppColors.green),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                  ],
+                ),
+
+              // return_requested: qaytarish tasdiqlash
+              if (res.status == 'return_requested')
+                Row(children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _loading ? null : () async {
+                        setState(() => _loading = true);
+                        await app.updateReservationStatus(res.id, 'active');
+                        if (mounted) setState(() => _loading = false);
+                      },
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppColors.green),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: Text(s.accept,
+                          style: const TextStyle(
+                              color: AppColors.green,
+                              fontWeight: FontWeight.w700, fontSize: 12)),
                     ),
                   ),
-                ),
-                if (res.status == 'return_requested') ...[
                   const SizedBox(width: 8),
                   Expanded(
                     child: OutlinedButton(
@@ -826,14 +1201,16 @@ class _ReservationTileState extends State<_ReservationTile> {
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: AppColors.blue),
                         padding: const EdgeInsets.symmetric(vertical: 10),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
                       ),
                       child: Text(s.returnedAction,
-                          style: const TextStyle(color: AppColors.blue, fontWeight: FontWeight.w700, fontSize: 12)),
+                          style: const TextStyle(
+                              color: AppColors.blue,
+                              fontWeight: FontWeight.w700, fontSize: 12)),
                     ),
                   ),
-                ],
-              ]),
+                ]),
             ],
           ],
         ),
@@ -1540,7 +1917,7 @@ class _BlockFormSheetState extends State<_BlockFormSheet> {
   }
 }
 
-// ─── Room bookings viewer (admin) ─────────────────────────────────────────────
+// ─── Room bookings viewer (admin) — Haftalik jadval ──────────────────────────
 
 class _RoomBookingsSheet extends StatefulWidget {
   final RoomModel room;
@@ -1552,10 +1929,22 @@ class _RoomBookingsSheet extends StatefulWidget {
 
 class _RoomBookingsSheetState extends State<_RoomBookingsSheet> {
   List<SeatBookingModel>? _bookings;
+  late DateTime _weekStart;
+  int _selectedDayIndex = -1; // -1 = barchasi
+
+  static const _dayNames = ['Du', 'Se', 'Ch', 'Pa', 'Ju', 'Sh', 'Ya'];
+  static const _dayNamesFull = [
+    'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba',
+    'Juma', 'Shanba', 'Yakshanba'
+  ];
 
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    _weekStart = now.subtract(Duration(days: now.weekday - 1));
+    _weekStart = DateTime(_weekStart.year, _weekStart.month, _weekStart.day);
+    _selectedDayIndex = now.weekday - 1;
     _load();
   }
 
@@ -1571,11 +1960,45 @@ class _RoomBookingsSheetState extends State<_RoomBookingsSheet> {
     }
   }
 
+  bool _isToday(DateTime d) {
+    final now = DateTime.now();
+    return d.year == now.year && d.month == now.month && d.day == now.day;
+  }
+
+  bool _sameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  String _weekRangeLabel() {
+    final end = _weekStart.add(const Duration(days: 6));
+    String fd(DateTime d) =>
+        '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
+    return '${fd(_weekStart)} – ${fd(end)}';
+  }
+
+  int _countForDay(int dayIdx) {
+    if (_bookings == null) return 0;
+    final day = _weekStart.add(Duration(days: dayIdx));
+    return _bookings!.where((b) => _sameDay(b.date, day)).length;
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = S.of(context);
+
+    final weekEnd = _weekStart.add(const Duration(days: 7));
+    final weekBookings = _bookings?.where(
+            (b) => !b.date.isBefore(_weekStart) && b.date.isBefore(weekEnd)).toList() ?? [];
+
+    List<SeatBookingModel> filtered;
+    if (_selectedDayIndex < 0) {
+      filtered = weekBookings;
+    } else {
+      final selDay = _weekStart.add(Duration(days: _selectedDayIndex));
+      filtered = weekBookings.where((b) => _sameDay(b.date, selDay)).toList();
+    }
+
     return DraggableScrollableSheet(
-      initialChildSize: 0.7,
+      initialChildSize: 0.85,
       maxChildSize: 0.95,
       builder: (_, ctrl) => Container(
         decoration: BoxDecoration(
@@ -1585,7 +2008,8 @@ class _RoomBookingsSheetState extends State<_RoomBookingsSheet> {
         child: Column(
           children: [
             const SizedBox(height: 8),
-            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade400, borderRadius: BorderRadius.circular(2))),
+            Container(width: 40, height: 4,
+                decoration: BoxDecoration(color: Colors.grey.shade400, borderRadius: BorderRadius.circular(2))),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 14, 20, 4),
               child: Row(children: [
@@ -1595,41 +2019,203 @@ class _RoomBookingsSheetState extends State<_RoomBookingsSheet> {
               ]),
             ),
             const Divider(height: 1),
-            Expanded(
-              child: _bookings == null
-                  ? const Center(child: CircularProgressIndicator())
-                  : _bookings!.isEmpty
-                  ? Center(child: Text(s.noSeatBookings, style: const TextStyle(color: Colors.grey)))
-                  : ListView.builder(
-                controller: ctrl,
-                padding: const EdgeInsets.all(16),
-                itemCount: _bookings!.length,
-                itemBuilder: (_, i) {
-                  final b = _bookings![i];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: AppCard(
-                      child: Row(
+            if (_bookings == null)
+              const Expanded(child: Center(child: CircularProgressIndicator()))
+            else
+              Expanded(
+                child: ListView(
+                  controller: ctrl,
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    // ── Haftalik navigatsiya ──────────────────────────
+                    AppCard(
+                      child: Column(
                         children: [
-                          Expanded(child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          Row(
                             children: [
-                              Text(b.studentName, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                              const SizedBox(height: 3),
-                              Text(
-                                '${b.date.day.toString().padLeft(2,'0')}.${b.date.month.toString().padLeft(2,'0')}.${b.date.year}  ${b.startTime} – ${b.endTime}',
-                                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                              IconButton(
+                                icon: const Icon(Icons.chevron_left_rounded, color: AppColors.accent),
+                                onPressed: () => setState(() {
+                                  _weekStart = _weekStart.subtract(const Duration(days: 7));
+                                  _selectedDayIndex = -1;
+                                }),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
+                              Expanded(
+                                child: Center(
+                                  child: Text(_weekRangeLabel(),
+                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.chevron_right_rounded, color: AppColors.accent),
+                                onPressed: () => setState(() {
+                                  _weekStart = _weekStart.add(const Duration(days: 7));
+                                  _selectedDayIndex = -1;
+                                }),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
                               ),
                             ],
-                          )),
-                          StatusBadge(label: s.statusActive, color: AppColors.green),
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: List.generate(7, (i) {
+                              final day = _weekStart.add(Duration(days: i));
+                              final selected = _selectedDayIndex == i;
+                              final today = _isToday(day);
+                              final count = _countForDay(i);
+
+                              return Expanded(
+                                child: GestureDetector(
+                                  onTap: () => setState(() {
+                                    _selectedDayIndex = selected ? -1 : i;
+                                  }),
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 180),
+                                    margin: const EdgeInsets.symmetric(horizontal: 2),
+                                    padding: const EdgeInsets.symmetric(vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: selected
+                                          ? AppColors.accent
+                                          : today
+                                          ? AppColors.accent.withOpacity(0.12)
+                                          : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: today && !selected
+                                          ? Border.all(color: AppColors.accent.withOpacity(0.5), width: 1.5)
+                                          : null,
+                                    ),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(_dayNames[i],
+                                            style: TextStyle(
+                                              fontSize: 10, fontWeight: FontWeight.w600,
+                                              color: selected ? Colors.black : Colors.grey.shade500,
+                                            )),
+                                        const SizedBox(height: 3),
+                                        Text('${day.day}',
+                                            style: TextStyle(
+                                              fontSize: 15, fontWeight: FontWeight.w800,
+                                              color: selected
+                                                  ? Colors.black
+                                                  : Theme.of(context).textTheme.bodyLarge?.color,
+                                            )),
+                                        const SizedBox(height: 3),
+                                        if (count > 0)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                            decoration: BoxDecoration(
+                                              color: selected
+                                                  ? Colors.black.withOpacity(0.25)
+                                                  : AppColors.accent.withOpacity(0.9),
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            child: Text('$count',
+                                                style: const TextStyle(
+                                                    fontSize: 9, fontWeight: FontWeight.w800,
+                                                    color: Colors.black)),
+                                          )
+                                        else
+                                          const SizedBox(height: 14),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }),
+                          ),
                         ],
                       ),
                     ),
-                  );
-                },
+                    const SizedBox(height: 12),
+
+                    // ── Kun sarlavhasi ────────────────────────────────
+                    if (_selectedDayIndex >= 0)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 10, left: 4),
+                        child: Row(
+                          children: [
+                            Text(_dayNamesFull[_selectedDayIndex],
+                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+                            const SizedBox(width: 8),
+                            if (filtered.isNotEmpty)
+                              StatusBadge(
+                                label: '${filtered.length} ta bron',
+                                color: AppColors.accent,
+                              ),
+                          ],
+                        ),
+                      ),
+
+                    // ── Bronlar ro'yxati ──────────────────────────────
+                    if (filtered.isEmpty)
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 24),
+                          child: Text(s.noSeatBookings,
+                              style: const TextStyle(color: Colors.grey)),
+                        ),
+                      )
+                    else
+                      ...filtered.map((b) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: AppCard(
+                          child: Row(
+                            children: [
+                              // Vaqt blogu
+                              Container(
+                                width: 52,
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: AppColors.green.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Text(b.startTime,
+                                        style: const TextStyle(
+                                            fontSize: 11, fontWeight: FontWeight.w800,
+                                            color: AppColors.green)),
+                                    Container(
+                                      margin: const EdgeInsets.symmetric(vertical: 3),
+                                      width: 20, height: 1,
+                                      color: AppColors.green.withOpacity(0.4),
+                                    ),
+                                    Text(b.endTime,
+                                        style: TextStyle(
+                                            fontSize: 11, fontWeight: FontWeight.w700,
+                                            color: AppColors.green.withOpacity(0.7))),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(b.studentName,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w700, fontSize: 13)),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      '${b.date.day.toString().padLeft(2, '0')}.${b.date.month.toString().padLeft(2, '0')}.${b.date.year}',
+                                      style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              StatusBadge(label: s.statusActive, color: AppColors.green),
+                            ],
+                          ),
+                        ),
+                      )),
+                  ],
+                ),
               ),
-            ),
           ],
         ),
       ),

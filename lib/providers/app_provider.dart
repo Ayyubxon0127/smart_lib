@@ -223,8 +223,29 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> updateReservationStatus(String id, String status) async {
-    await _db.collection('reservations').doc(id).update({'status': status});
-    await fetchReservations();
+    final res = _reservations.firstWhere(
+          (r) => r.id == id,
+      orElse: () => ReservationModel(
+        id: '', studentId: '', studentName: '', bookId: '',
+        status: '', reserveDate: DateTime.now(), dueDate: DateTime.now(),
+      ),
+    );
+
+    final batch = _db.batch();
+    batch.update(_db.collection('reservations').doc(id), {'status': status});
+
+    if (res.bookId.isNotEmpty) {
+      final bookRef = _db.collection('books').doc(res.bookId);
+      if (res.status == 'pending_confirm' && status == 'active') {
+        batch.update(bookRef, {'available': FieldValue.increment(-1)});
+      } else if ((res.status == 'return_requested' || res.status == 'active') &&
+          status == 'returned') {
+        batch.update(bookRef, {'available': FieldValue.increment(1)});
+      }
+    }
+
+    await batch.commit();
+    await Future.wait([fetchReservations(), fetchBooks()]);
   }
 
   Future<void> addAnnouncement(AnnouncementModel ann) async {
@@ -250,9 +271,9 @@ class AppProvider extends ChangeNotifier {
   // ── Kitobni qaytarganlik tekshiruvi ──────────────────────────────────────
   bool hasReturnedBook(String bookId) {
     return _reservations.any((r) =>
-      r.bookId == bookId &&
-      r.studentId == _currentUser!.id &&
-      r.status == 'returned'
+    r.bookId == bookId &&
+        r.studentId == _currentUser!.id &&
+        r.status == 'returned'
     );
   }
 
@@ -404,10 +425,10 @@ class AppProvider extends ChangeNotifier {
 
     // Check duplicate: student already booked this room at overlapping time (client-side)
     final alreadyBooked = _seatBookings.any((b) =>
-      b.status == 'active' &&
-      b.roomId == roomId &&
-      _sameDay(b.date, date) &&
-      _overlaps(startTime, endTime, b.startTime, b.endTime));
+    b.status == 'active' &&
+        b.roomId == roomId &&
+        _sameDay(b.date, date) &&
+        _overlaps(startTime, endTime, b.startTime, b.endTime));
     if (alreadyBooked) return 'Siz bu vaqtda ushbu xonaga allaqachon bron qilgansiz!';
 
     // Check room blocks — single-field query, filter date client-side
