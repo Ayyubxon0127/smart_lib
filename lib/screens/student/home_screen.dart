@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/app_provider.dart';
 import '../../widgets/common_widgets.dart';
 import '../../constants.dart';
+import '../../l10n.dart';
 
 class StudentHomeScreen extends StatelessWidget {
   const StudentHomeScreen({super.key});
@@ -10,6 +11,7 @@ class StudentHomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app        = context.watch<AppProvider>();
+    final s          = S.of(context);
     final user       = app.currentUser;
     final active     = app.reservations.where((r) => r.status == 'active').toList();
     final recentAnn  = app.announcements.take(3).toList();
@@ -17,7 +19,7 @@ class StudentHomeScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Smart Kutubxona'),
+        title: Text(s.appTitle),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
@@ -44,14 +46,14 @@ class StudentHomeScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Salom, ${user?.name ?? ''}!',
+                        Text(s.greeting(user?.name ?? ''),
                             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-                        Text(user?.group ?? user?.faculty ?? 'Kutubxona',
+                        Text(user?.group ?? user?.faculty ?? s.library,
                             style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
                       ],
                     ),
                   ),
-                  const StatusBadge(label: 'Talaba', color: AppColors.accent),
+                  StatusBadge(label: s.student, color: AppColors.accent),
                 ],
               ),
             ),
@@ -62,12 +64,12 @@ class StudentHomeScreen extends StatelessWidget {
               children: [
                 Expanded(child: _StatCard(
                   icon: Icons.bookmark_rounded, color: AppColors.blue,
-                  label: 'Faol bronlar', value: '${active.length}',
+                  label: s.activeReservations, value: '${active.length}',
                 )),
                 const SizedBox(width: 12),
                 Expanded(child: _StatCard(
                   icon: Icons.menu_book_rounded, color: AppColors.green,
-                  label: "O'qilgan kitoblar", value: '${user?.booksRead ?? 0}',
+                  label: s.booksRead, value: '${user?.booksRead ?? 0}',
                 )),
               ],
             ),
@@ -77,13 +79,13 @@ class StudentHomeScreen extends StatelessWidget {
             if (app.reservations.any((r) => r.isOverdue)) ...[
               AppCard(
                 borderColor: AppColors.red.withOpacity(0.5),
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(Icons.warning_amber_rounded, color: AppColors.red),
-                    SizedBox(width: 10),
+                    const Icon(Icons.warning_amber_rounded, color: AppColors.red),
+                    const SizedBox(width: 10),
                     Expanded(
-                      child: Text("Muddati o'tgan kitob(lar) mavjud!",
-                          style: TextStyle(color: AppColors.red, fontWeight: FontWeight.w700)),
+                      child: Text(s.overdueWarning,
+                          style: const TextStyle(color: AppColors.red, fontWeight: FontWeight.w700)),
                     ),
                   ],
                 ),
@@ -92,11 +94,11 @@ class StudentHomeScreen extends StatelessWidget {
             ],
 
             // New books
-            const SectionTitle(label: 'Yangi kitoblar', icon: Icons.auto_stories_outlined),
+            SectionTitle(label: s.newBooks, icon: Icons.auto_stories_outlined),
             if (recentBooks.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
-                child: Text('Kitoblar yuklanmoqda...', style: TextStyle(color: Colors.grey)),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(s.loadingBooks, style: const TextStyle(color: Colors.grey)),
               )
             else
               SizedBox(
@@ -129,9 +131,9 @@ class StudentHomeScreen extends StatelessWidget {
               ),
 
             // Recent announcements
-            const SectionTitle(label: "So'nggi e'lonlar", icon: Icons.campaign_outlined),
+            SectionTitle(label: s.recentAnnouncements, icon: Icons.campaign_outlined),
             if (recentAnn.isEmpty)
-              const Text("E'lonlar yo'q", style: TextStyle(color: Colors.grey))
+              Text(s.noAnnouncements, style: const TextStyle(color: Colors.grey))
             else
               ...recentAnn.map((a) => Padding(
                 padding: const EdgeInsets.only(bottom: 8),

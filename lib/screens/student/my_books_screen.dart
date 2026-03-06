@@ -4,6 +4,7 @@ import '../../providers/app_provider.dart';
 import '../../models/reservation_model.dart';
 import '../../widgets/common_widgets.dart';
 import '../../constants.dart';
+import '../../l10n.dart';
 
 class MyBooksScreen extends StatelessWidget {
   const MyBooksScreen({super.key});
@@ -13,9 +14,10 @@ class MyBooksScreen extends StatelessWidget {
     final app          = context.watch<AppProvider>();
     final reservations = app.reservations;
 
+    final s = S.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mening kitoblarim'),
+        title: Text(s.myBooks),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
@@ -24,9 +26,9 @@ class MyBooksScreen extends StatelessWidget {
         ],
       ),
       body: reservations.isEmpty
-          ? const Center(
-              child: Text("Hali bron qilingan kitob yo'q",
-                  style: TextStyle(color: Colors.grey)))
+          ? Center(
+              child: Text(s.noReservations,
+                  style: const TextStyle(color: Colors.grey)))
           : ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: reservations.length,
@@ -48,24 +50,25 @@ class _ReservationCard extends StatefulWidget {
 class _ReservationCardState extends State<_ReservationCard> {
   bool _loading = false;
 
-  (String, Color) _statusInfo(String status) => switch (status) {
-        'pending_confirm'  => ('Tasdiq kutilmoqda', AppColors.orange),
-        'active'           => ('Faol', AppColors.green),
-        'return_requested' => ("Qaytarish so'rovi", AppColors.blue),
-        'returned'         => ('Qaytarilgan', Colors.grey),
-        _                  => ("Noma'lum", Colors.grey),
+  (String, Color) _statusInfo(String status, S s) => switch (status) {
+        'pending_confirm'  => (s.statusPendingConfirm, AppColors.orange),
+        'active'           => (s.statusActive, AppColors.green),
+        'return_requested' => (s.statusReturnRequested, AppColors.blue),
+        'returned'         => (s.statusReturned, Colors.grey),
+        _                  => (s.statusUnknown, Colors.grey),
       };
 
   @override
   Widget build(BuildContext context) {
     final app       = context.watch<AppProvider>();
+    final s         = S.of(context);
     final res       = widget.reservation;
     final isOverdue = res.isOverdue;
     final bookList  = app.books.where((b) => b.id == res.bookId);
-    final bookTitle = bookList.isNotEmpty ? bookList.first.title : 'Kitob';
+    final bookTitle = bookList.isNotEmpty ? bookList.first.title : s.book;
     final bookEmoji = bookList.isNotEmpty ? bookList.first.coverEmoji : '📖';
     final bookImg   = bookList.isNotEmpty ? bookList.first.imageUrl : null;
-    final info      = _statusInfo(res.status);
+    final info      = _statusInfo(res.status, s);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -107,8 +110,8 @@ class _ReservationCardState extends State<_ReservationCard> {
                 const SizedBox(width: 4),
                 Text(
                   isOverdue
-                      ? '${res.daysLeft.abs()} kun kechikdi'
-                      : '${res.daysLeft} kun qoldi',
+                      ? s.daysOverdue(res.daysLeft.abs())
+                      : s.daysLeft(res.daysLeft),
                   style: TextStyle(
                       fontSize: 11,
                       color: isOverdue ? AppColors.red : Colors.grey.shade500,
@@ -119,7 +122,7 @@ class _ReservationCardState extends State<_ReservationCard> {
             if (res.status == 'active') ...[
               const SizedBox(height: 10),
               AccentButton(
-                label: "Qaytarish so'rovi",
+                label: s.returnRequest,
                 icon: Icons.assignment_return_outlined,
                 loading: _loading,
                 onTap: () async {
@@ -128,7 +131,7 @@ class _ReservationCardState extends State<_ReservationCard> {
                   if (mounted) {
                     setState(() => _loading = false);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Qaytarish so'rovi yuborildi")),
+                      SnackBar(content: Text(s.returnRequestSent)),
                     );
                   }
                 },

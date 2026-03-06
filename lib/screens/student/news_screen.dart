@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/app_provider.dart';
 import '../../widgets/common_widgets.dart';
 import '../../constants.dart';
+import '../../l10n.dart';
 
 class NewsScreen extends StatelessWidget {
   const NewsScreen({super.key});
@@ -10,30 +11,31 @@ class NewsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppProvider>();
+    final s = S.of(context);
     const typeColors = {
       'new_books': AppColors.green,
       'info':      AppColors.blue,
       'reminder':  AppColors.accent,
       'survey':    AppColors.purple,
     };
-    const typeLabels = {
-      'new_books': 'Yangi kitob',
-      'info':      "Ma'lumot",
-      'reminder':  'Eslatma',
-      'survey':    "So'rovnoma",
+    final typeLabels = {
+      'new_books': s.typeNewBooks,
+      'info':      s.typeInfo,
+      'reminder':  s.typeReminder,
+      'survey':    s.typeSurvey,
     };
 
     return Scaffold(
-      appBar: AppBar(title: const Text("E'lonlar")),
+      appBar: AppBar(title: Text(s.announcements)),
       body: app.announcements.isEmpty
-          ? const Center(child: Text("Hali e'lon yo'q", style: TextStyle(color: Colors.grey)))
+          ? Center(child: Text(s.noAnnouncementsYet, style: const TextStyle(color: Colors.grey)))
           : ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: app.announcements.length,
         itemBuilder: (_, i) {
           final a     = app.announcements[i];
           final color = typeColors[a.type] ?? AppColors.blue;
-          final label = typeLabels[a.type] ?? "Ma'lumot";
+          final label = typeLabels[a.type] ?? s.typeInfo;
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: AppCard(
@@ -45,7 +47,7 @@ class NewsScreen extends StatelessWidget {
                     StatusBadge(label: label, color: color),
                     if (a.important) ...[
                       const SizedBox(width: 6),
-                      const StatusBadge(label: '⚠️ Muhim', color: AppColors.red),
+                      StatusBadge(label: s.important, color: AppColors.red),
                     ],
                     const Spacer(),
                     Text('${a.date.day}.${a.date.month}.${a.date.year}',

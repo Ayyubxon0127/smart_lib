@@ -31,6 +31,7 @@ class SmartKutubxonaApp extends StatelessWidget {
           return MaterialApp(
             title: 'Smart Kutubxona',
             debugShowCheckedModeBanner: false,
+            locale: Locale(app.lang),
             themeMode: app.isDark ? ThemeMode.dark : ThemeMode.light,
             theme: _buildTheme(Brightness.light),
             darkTheme: _buildTheme(Brightness.dark),

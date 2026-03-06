@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 import '../constants.dart';
 import '../widgets/common_widgets.dart';
+import '../l10n.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -39,17 +40,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _register() async {
     setState(() => _errorMsg = null);
 
+    final sl = S.read(context);
     if (_nameCtrl.text.trim().isEmpty || _emailCtrl.text.trim().isEmpty ||
         _phoneCtrl.text.trim().isEmpty || _passCtrl.text.isEmpty) {
-      setState(() => _errorMsg = "Barcha majburiy maydonlarni to'ldiring");
+      setState(() => _errorMsg = sl.fillAllFields);
       return;
     }
     if (_passCtrl.text != _pass2Ctrl.text) {
-      setState(() => _errorMsg = "Parollar mos kelmaydi");
+      setState(() => _errorMsg = sl.passwordMismatch);
       return;
     }
     if (_passCtrl.text.length < 6) {
-      setState(() => _errorMsg = "Parol kamida 6 ta belgidan iborat bo'lishi kerak");
+      setState(() => _errorMsg = sl.passwordTooShort);
       return;
     }
 
@@ -66,13 +68,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
 
     if (!ok && mounted) {
-      setState(() => _errorMsg = app.error ?? 'Xatolik yuz berdi');
+      setState(() => _errorMsg = app.error ?? S.read(context).errorOccurred);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final app    = context.watch<AppProvider>();
+    final s      = S.of(context);
     final isDark = app.isDark;
 
     final directions = (_degree == 'magistr'
@@ -104,14 +107,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                   const SizedBox(width: 16),
-                  const Text('Ro\'yhatdan o\'tish',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                  Text(s.register,
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
                 ],
               ),
               const SizedBox(height: 8),
               Padding(
                 padding: const EdgeInsets.only(left: 48),
-                child: Text('Talaba hisobi yaratish',
+                child: Text(s.createStudentAccount,
                     style: TextStyle(fontSize: 13, color: Colors.grey.shade500)),
               ),
               const SizedBox(height: 28),
@@ -121,9 +124,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // ── Shaxsiy ma'lumotlar ──
-                    const SectionTitle(label: "Shaxsiy ma'lumotlar", icon: Icons.person_outline),
+                    SectionTitle(label: s.personalInfo, icon: Icons.person_outline),
                     AppTextField(
-                      hint: 'To\'liq ism *',
+                      hint: s.fullName,
                       controller: _nameCtrl,
                       prefix: const Icon(Icons.badge_outlined, size: 18),
                     ),
@@ -136,18 +139,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     const SizedBox(height: 10),
                     AppTextField(
-                      hint: 'Telefon raqam *',
+                      hint: s.emailPhone,
                       controller: _phoneCtrl,
                       keyboardType: TextInputType.phone,
                       prefix: const Icon(Icons.phone_outlined, size: 18),
                     ),
 
                     // ── Ta'lim ma'lumotlari ──
-                    const SectionTitle(label: "Ta'lim ma'lumotlari", icon: Icons.school_outlined),
+                    SectionTitle(label: s.educationInfo, icon: Icons.school_outlined),
 
                     // Daraja
                     _DropdownField(
-                      hint: 'Daraja *',
+                      hint: s.degree,
                       icon: Icons.workspace_premium_outlined,
                       value: _degree,
                       items: const ['bakalavr', 'magistr'],
@@ -162,7 +165,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     // Fakultet (faqat bakalavr)
                     if (_degree == 'bakalavr') ...[
                       _DropdownField(
-                        hint: 'Fakultet',
+                        hint: s.facultyLabel,
                         icon: Icons.account_balance_outlined,
                         value: _faculty,
                         items: kFacultyNames,
@@ -177,7 +180,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     // Yo'nalish
                     if (directions.isNotEmpty) ...[
                       _DropdownField(
-                        hint: 'Yo\'nalish',
+                        hint: s.directionLabel,
                         icon: Icons.route_outlined,
                         value: _direction,
                         items: directions,
@@ -188,22 +191,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                     // Guruh
                     AppTextField(
-                      hint: 'Guruh (masalan: MTI-21)',
+                      hint: s.groupHint,
                       controller: _groupCtrl,
                       prefix: const Icon(Icons.group_outlined, size: 18),
                     ),
 
                     // ── Parol ──
-                    const SectionTitle(label: 'Parol', icon: Icons.lock_outline),
+                    SectionTitle(label: s.passwordLabel, icon: Icons.lock_outline),
                     _PasswordField(
-                      hint: 'Parol * (kamida 6 ta belgi)',
+                      hint: s.passwordHint,
                       controller: _passCtrl,
                       obscure: _obscure1,
                       onToggle: () => setState(() => _obscure1 = !_obscure1),
                     ),
                     const SizedBox(height: 10),
                     _PasswordField(
-                      hint: 'Parolni tasdiqlang *',
+                      hint: s.confirmPassword,
                       controller: _pass2Ctrl,
                       obscure: _obscure2,
                       onToggle: () => setState(() => _obscure2 = !_obscure2),
@@ -233,7 +236,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ],
 
                     AccentButton(
-                      label: 'Ro\'yhatdan o\'tish',
+                      label: s.register,
                       icon: Icons.person_add_rounded,
                       loading: app.loading,
                       onTap: _register,
@@ -248,12 +251,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   onTap: () => Navigator.pop(context),
                   child: RichText(
                     text: TextSpan(
-                      text: 'Hisobingiz bormi? ',
+                      text: s.haveAccount,
                       style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
-                      children: const [
+                      children: [
                         TextSpan(
-                          text: 'Kirish',
-                          style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.w800),
+                          text: s.signIn,
+                          style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.w800),
                         ),
                       ],
                     ),

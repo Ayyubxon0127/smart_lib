@@ -4,6 +4,7 @@ import '../providers/app_provider.dart';
 import 'register_screen.dart';
 import '../constants.dart';
 import '../widgets/common_widgets.dart';
+import '../l10n.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -29,12 +30,13 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _errorMsg = null);
     final app = context.read<AppProvider>();
     final ok = await app.login(_emailCtrl.text.trim(), _passCtrl.text.trim());
-    if (!ok && mounted) setState(() => _errorMsg = app.error ?? 'Xatolik yuz berdi');
+    if (!ok && mounted) setState(() => _errorMsg = app.error ?? S.read(context).errorOccurred);
   }
 
   @override
   Widget build(BuildContext context) {
     final app   = context.watch<AppProvider>();
+    final s     = S.of(context);
     final isDark = app.isDark;
 
     return Scaffold(
@@ -62,11 +64,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              const Center(
-                child: Text('Smart Kutubxona', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
+              Center(
+                child: Text(s.appTitle, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
               ),
               Center(
-                child: Text('Universitet Kutubxona Tizimi',
+                child: Text(s.uniSystem,
                     style: TextStyle(fontSize: 13, color: Colors.grey.shade500)),
               ),
               const SizedBox(height: 48),
@@ -76,7 +78,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Kirish', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                    Text(s.signIn, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
                     const SizedBox(height: 20),
                     AppTextField(
                       hint: 'Email',
@@ -86,7 +88,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 12),
                     AppTextField(
-                      hint: 'Parol',
+                      hint: s.password,
                       controller: _passCtrl,
                       obscure: _obscure,
                       prefix: const Icon(Icons.lock_outline, size: 18),
@@ -110,7 +112,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 16),
                     ],
-                    AccentButton(label: 'Kirish', icon: Icons.login_rounded, loading: app.loading, onTap: _login),
+                    AccentButton(label: s.signIn, icon: Icons.login_rounded, loading: app.loading, onTap: _login),
                   ],
                 ),
               ),
@@ -124,12 +126,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   child: RichText(
                     text: TextSpan(
-                      text: 'Hisobingiz yo\'qmi? ',
+                      text: s.noAccount,
                       style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
-                      children: const [
+                      children: [
                         TextSpan(
-                          text: 'Ro\'yhatdan o\'tish',
-                          style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.w800),
+                          text: s.registerLink,
+                          style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.w800),
                         ),
                       ],
                     ),

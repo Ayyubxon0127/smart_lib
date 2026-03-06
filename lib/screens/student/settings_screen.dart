@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/app_provider.dart';
 import '../../widgets/common_widgets.dart';
 import '../../constants.dart';
+import '../../l10n.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -10,10 +11,11 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app  = context.watch<AppProvider>();
+    final s    = S.of(context);
     final user = app.currentUser;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Sozlamalar')),
+      appBar: AppBar(title: Text(s.settings)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -37,9 +39,9 @@ class SettingsScreen extends StatelessWidget {
                           Text(user?.email ?? '', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
                           const SizedBox(height: 6),
                           Wrap(spacing: 6, children: [
-                            StatusBadge(label: app.role == 'librarian' ? 'Kutubxonachi' : 'Talaba', color: AppColors.accent),
+                            StatusBadge(label: app.role == 'librarian' ? s.librarian : s.student, color: AppColors.accent),
                             if (user?.degree != null)
-                              StatusBadge(label: user!.degree == 'magistr' ? '🏅 Magistr' : '🎓 Bakalavr', color: AppColors.purple),
+                              StatusBadge(label: user!.degree == 'magistr' ? s.magistr : s.bakalavr, color: AppColors.purple),
                             if (user?.group != null)
                               StatusBadge(label: user!.group!, color: AppColors.blue),
                           ]),
@@ -63,7 +65,7 @@ class SettingsScreen extends StatelessWidget {
                 ],
                 const SizedBox(height: 14),
                 AccentButton(
-                  label: 'Profilni tahrirlash',
+                  label: s.editProfile,
                   icon: Icons.edit_outlined,
                   onTap: () => showModalBottomSheet(
                     context: context, isScrollControlled: true,
@@ -76,32 +78,32 @@ class SettingsScreen extends StatelessWidget {
           ),
 
           // Appearance
-          const SectionTitle(label: "Ko'rinish", icon: Icons.palette_outlined),
+          SectionTitle(label: s.appearance, icon: Icons.palette_outlined),
           AppCard(
             child: Column(children: [
               Row(children: [
                 Icon(app.isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded, color: AppColors.accent),
                 const SizedBox(width: 12),
-                Expanded(child: Text(app.isDark ? "Qorong'u rejim" : "Yorug' rejim")),
+                Expanded(child: Text(app.isDark ? s.darkMode : s.lightMode)),
                 Switch(value: app.isDark, onChanged: (_) => app.toggleDark(), activeColor: AppColors.accent),
               ]),
               const Divider(),
-              const Padding(
-                padding: EdgeInsets.only(bottom: 8),
-                child: Align(alignment: Alignment.centerLeft, child: Text('Til', style: TextStyle(fontWeight: FontWeight.w600))),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Align(alignment: Alignment.centerLeft, child: Text(s.language, style: const TextStyle(fontWeight: FontWeight.w600))),
               ),
-              Row(children: [
+              const Row(children: [
                 _LangBtn(code: 'uz', label: "O'zbek 🇺🇿"),
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
                 _LangBtn(code: 'ru', label: 'Русский 🇷🇺'),
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
                 _LangBtn(code: 'en', label: 'English 🇬🇧'),
               ]),
             ]),
           ),
 
           // Support
-          const SectionTitle(label: "Qo'llab-quvvatlash", icon: Icons.support_agent_outlined),
+          SectionTitle(label: s.support, icon: Icons.support_agent_outlined),
           AppCard(
             child: Row(children: [
               Container(
@@ -121,7 +123,7 @@ class SettingsScreen extends StatelessWidget {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 ),
-                child: const Text('Yozish', style: TextStyle(fontSize: 12)),
+                child: Text(s.write, style: const TextStyle(fontSize: 12)),
               ),
             ]),
           ),
@@ -130,7 +132,7 @@ class SettingsScreen extends StatelessWidget {
           OutlinedButton.icon(
             onPressed: () => context.read<AppProvider>().logout(),
             icon: const Icon(Icons.logout_rounded, color: AppColors.red),
-            label: const Text('Akkauntdan chiqish', style: TextStyle(color: AppColors.red)),
+            label: Text(s.logout, style: const TextStyle(color: AppColors.red)),
             style: OutlinedButton.styleFrom(
               side: BorderSide(color: AppColors.red.withOpacity(0.5)),
               padding: const EdgeInsets.symmetric(vertical: 14),
@@ -210,6 +212,7 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
   @override
   Widget build(BuildContext context) {
     final app       = context.watch<AppProvider>();
+    final s         = S.of(context);
     final isStudent = app.role == 'student';
     final selFaculty = kFacultyDirections[_faculty];
 
@@ -225,7 +228,7 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
             child: Row(children: [
-              const Text('Profilni tahrirlash', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+              Text(s.editProfileTitle, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
               const Spacer(),
               IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
             ]),
@@ -258,30 +261,30 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                 ),
                 const SizedBox(height: 14),
 
-                AppTextField(hint: "To'liq ism *", controller: _nameCtrl, prefix: const Icon(Icons.person_outline, size: 18)),
+                AppTextField(hint: s.fullName, controller: _nameCtrl, prefix: const Icon(Icons.person_outline, size: 18)),
                 const SizedBox(height: 10),
-                AppTextField(hint: 'Telefon', controller: _phoneCtrl, keyboardType: TextInputType.phone, prefix: const Icon(Icons.phone_outlined, size: 18)),
+                AppTextField(hint: s.phone, controller: _phoneCtrl, keyboardType: TextInputType.phone, prefix: const Icon(Icons.phone_outlined, size: 18)),
                 const SizedBox(height: 10),
 
                 if (isStudent) ...[
-                  AppTextField(hint: 'Guruh (CS-21)', controller: _groupCtrl, prefix: const Icon(Icons.group_outlined, size: 18)),
+                  AppTextField(hint: s.group, controller: _groupCtrl, prefix: const Icon(Icons.group_outlined, size: 18)),
                   const SizedBox(height: 16),
 
                   // Degree
-                  const Text("Ta'lim darajasi", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.grey)),
+                  Text(s.educationLevel, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.grey)),
                   const SizedBox(height: 8),
                   Row(children: [
-                    _DegreeBtn(label: '🎓 Bakalavr', value: 'bakalavr', group: _degree,
+                    _DegreeBtn(label: s.bakalavr, value: 'bakalavr', group: _degree,
                       onTap: () => setState(() { _degree = 'bakalavr'; _faculty = ''; _direction = ''; })),
                     const SizedBox(width: 10),
-                    _DegreeBtn(label: '🏅 Magistr', value: 'magistr', group: _degree,
+                    _DegreeBtn(label: s.magistr, value: 'magistr', group: _degree,
                       onTap: () => setState(() { _degree = 'magistr'; _faculty = 'Magistratura'; _direction = ''; })),
                   ]),
                   const SizedBox(height: 16),
 
                   // Bakalavr
                   if (_degree == 'bakalavr') ...[
-                    const Text('Fakultet', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.grey)),
+                    Text(s.faculty, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.grey)),
                     const SizedBox(height: 8),
                     ...kFacultyNames.map((f) => GestureDetector(
                       onTap: () => setState(() { _faculty = f; _direction = ''; }),
@@ -299,7 +302,7 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                     )),
                     if (selFaculty != null) ...[
                       const SizedBox(height: 8),
-                      const Text("Yo'nalish", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.grey)),
+                      Text(s.direction, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.grey)),
                       const SizedBox(height: 8),
                       Wrap(spacing: 8, runSpacing: 8, children: selFaculty.map((d) => GestureDetector(
                         onTap: () => setState(() => _direction = d),
@@ -320,7 +323,7 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
 
                   // Magistr
                   if (_degree == 'magistr') ...[
-                    const Text("Magistratura yo'nalishi", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.grey)),
+                    Text(s.masterDirection, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.grey)),
                     const SizedBox(height: 8),
                     ...kMagistrDirections.asMap().entries.map((e) => GestureDetector(
                       onTap: () => setState(() => _direction = e.value),
@@ -345,10 +348,10 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                   ],
                 ],
 
-                AppTextField(hint: "O'zingiz haqingizda...", controller: _bioCtrl, maxLines: 3),
+                AppTextField(hint: s.aboutYourself, controller: _bioCtrl, maxLines: 3),
                 const SizedBox(height: 20),
                 AccentButton(
-                  label: 'Saqlash',
+                  label: s.save,
                   icon: Icons.check_rounded,
                   loading: _saving,
                   onTap: () async {
