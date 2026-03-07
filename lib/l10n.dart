@@ -155,6 +155,10 @@ class S {
   String deleteConfirm(String title) => _t('"$title" kitobini o\'chirishni tasdiqlaysizmi?', 'Delete "$title"?', '"$title" ni o\'chirish?');
   String get cancel => _t('Bekor', 'Cancel', 'Отмена');
   String get delete => _t("O'chirish", 'Delete', 'Удалить');
+  String get editComment => _t('Izohni tahrirlash', 'Edit comment', 'Редактировать комментарий');
+  String get editQuestion => _t('Savolni tahrirlash', 'Edit question', 'Редактировать вопрос');
+  String get deleteCommentConfirm => _t("Izohni o'chirishni tasdiqlaysizmi?", 'Delete this comment?', 'Удалить этот комментарий?');
+  String get deleteQuestionConfirm => _t("Savolni o'chirishni tasdiqlaysizmi?", 'Delete this question?', 'Удалить этот вопрос?');
 
   // Reservations management
   String get reservationNotFound => _t('Bron topilmadi', 'Reservation not found', 'Бронь не найдена');
@@ -284,6 +288,79 @@ class S {
   String get statusConfirmed => _t('Tasdiqlangan', 'Confirmed', 'Подтверждено');
   String get statusLeft      => _t('Erta chiqqan', 'Left early', 'Ушёл раньше');
   String get statusNoShow    => _t('Kelmagan', 'No-show', 'Не явился');
+
+  // Settings – new sections
+  String get systemTheme        => _t('Tizim temasidan foydalanish', 'Use system theme', 'Тема системы');
+  String get systemThemeSub     => _t('Qurilma sozlamasiga qarab', 'Follow device setting', 'По настройкам устройства');
+  String get libraryPrefs       => _t('Kutubxona sozlamalari', 'Library preferences', 'Настройки библиотеки');
+  String get favoriteBooks      => _t('Sevimli kitoblar', 'Favorite books', 'Любимые книги');
+  String get readingHistory     => _t("O'qish tarixi", 'Reading history', 'История чтения');
+  String get recommendedBooks   => _t('Tavsiya etilgan kitoblar', 'Recommended books', 'Рекомендованные книги');
+  String get notificationSettings => _t('Bildirishnomalar', 'Notifications', 'Уведомления');
+  String get bookReturnReminders  => _t('Kitob qaytarish eslatmalari', 'Book return reminders', 'Напоминания о возврате');
+  String get newBookAlerts      => _t('Yangi kitob xabarlari', 'New book alerts', 'Уведомления о книгах');
+  String get finesNotifications => _t('Jarima xabarlari', 'Fines notifications', 'Уведомления о штрафах');
+  String get faq                => _t("Ko'p so'raladigan savollar", 'FAQ', 'FAQ');
+  String get emailSupport       => _t('Email orqali murojaat', 'Email support', 'Поддержка по email');
+  String get appInfo            => _t('Ilova haqida', 'App info', 'Об приложении');
+  String get appVersion         => _t('Versiya', 'Version', 'Версия');
+  String get privacyPolicy      => _t('Maxfiylik siyosati', 'Privacy policy', 'Политика конфиденциальности');
+  String get termsOfService     => _t("Foydalanish shartlari", 'Terms of service', 'Условия использования');
+  String get changePassword     => _t("Parolni o'zgartirish", 'Change password', 'Изменить пароль');
+  String get changePasswordSub  => _t('Emailga tiklash havolasi yuboriladi', 'Reset link sent to email', 'Ссылка сброса на email');
+  String get passwordResetSent  => _t('Tiklash havolasi emailingizga yuborildi!', 'Reset link sent to your email!', 'Ссылка отправлена на email!');
+  String get account            => _t('Hisob', 'Account', 'Аккаунт');
+  String get comingSoon         => _t('Tez kunda...', 'Coming soon...', 'Скоро...');
+
+  // Slot states
+  String get slotStarted        => _t('Boshlandi', 'Started', 'Началось');
+  String get slotExpired        => _t("Vaqti o'tdi", 'Expired', 'Истекло');
+  String get slotFinished       => _t('Tugadi', 'Finished', 'Завершено');
+  String get slotFull           => _t("To'liq", 'Full', 'Заполнено');
+  String get slotBooked         => _t('Bron qilingan', 'Booked', 'Забронировано');
+  String get bookThisSlot       => _t('Bu slotni bron qilish', 'Book this slot', 'Забронировать слот');
+  String get noBookingsYet      => _t("Bronlar yo'q", 'No bookings yet', 'Нет броней');
+  String get upcomingBookings   => _t('Kelayotgan bronlar', 'Upcoming bookings', 'Предстоящие брони');
+  String get pastBookings       => _t("O'tgan bronlar", 'Past bookings', 'Прошедшие брони');
+  String seatsProgress(int booked, int total) => _t('$booked/$total o\'rin band', '$booked/$total seats taken', '$booked/$total мест занято');
+
+  // Announcement management (admin)
+  String get editAnnouncement   => _t("E'lonni tahrirlash", 'Edit announcement', 'Редактировать');
+  String get deleteAnnouncement => _t("E'lonni o'chirish", 'Delete', 'Удалить');
+  String get pinAnnouncement    => _t('Qadash', 'Pin', 'Закрепить');
+  String get unpinAnnouncement  => _t("Qadashni olish", 'Unpin', 'Открепить');
+  String get pinned             => _t('Qadangan', 'Pinned', 'Закреплено');
+  String get published          => _t('Nashr qilingan', 'Published', 'Опубликовано');
+  String get draft              => _t('Qoralama', 'Draft', 'Черновик');
+  String get publish            => _t('Nashr qilish', 'Publish', 'Опубликовать');
+  String get unpublish          => _t('Qoralamaga o\'tkazish', 'Save as draft', 'В черновик');
+  String get typeImportant      => _t('Muhim', 'Important', 'Важное');
+  String get typeWarning        => _t('Ogohlantirish', 'Warning', 'Предупреждение');
+  String get typeEvent          => _t('Tadbir', 'Event', 'Мероприятие');
+  String get deleteAnnouncementConfirm => _t("E'lonni o'chirishni tasdiqlaysizmi?", 'Delete this announcement?', 'Удалить это объявление?');
+
+  // Social links (settings)
+  String get socialNetworks     => _t('Ijtimoiy tarmoqlar', 'Social networks', 'Соцсети');
+  String get telegram           => _t('Telegram', 'Telegram', 'Telegram');
+  String get instagram          => _t('Instagram', 'Instagram', 'Instagram');
+  String get website            => _t('Veb-sayt', 'Website', 'Сайт');
+  String get emailCopied        => _t('Email nusxalandi!', 'Email copied!', 'Email скопирован!');
+
+  // FAQ
+  String get faqTitle           => _t("Ko'p so'raladigan savollar", 'Frequently Asked Questions', 'Часто задаваемые вопросы');
+  String get noFaqItems         => _t("FAQ mavjud emas", 'No FAQ items yet', 'Нет элементов FAQ');
+
+  // Static content
+  String get privacyPolicyContent => _t(
+    'Maxfiylik siyosati hali yuklanmadi.',
+    'Privacy policy content not loaded.',
+    'Политика конфиденциальности не загружена.',
+  );
+  String get termsContent       => _t(
+    'Foydalanish shartlari hali yuklanmadi.',
+    'Terms of service content not loaded.',
+    'Условия использования не загружены.',
+  );
 
   String _t(String uz, String en, String ru) {
     if (lang == 'ru') return ru;

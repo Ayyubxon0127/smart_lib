@@ -18,6 +18,7 @@ class AppProvider extends ChangeNotifier {
   UserModel?              _currentUser;
   String                  _role        = '';
   bool                    _isDark      = true;
+  bool                    _useSystemTheme = false;
   String                  _lang        = 'uz';
   bool                    _loading     = false;
   String?                 _error;
@@ -27,11 +28,17 @@ class AppProvider extends ChangeNotifier {
   List<UserModel>         _students      = [];
   List<RoomModel>         _rooms         = [];
   List<SeatBookingModel>  _seatBookings  = [];
+  Set<String>             _favorites     = {};
+  List<String>            _history       = []; // most recent first, max 30
+  Map<String, String>     _socialLinks    = {};
+  List<Map<String, String>> _faqItems    = [];
+  List<LibraryClosedDayModel> _closedDays = [];
 
   UserModel?              get currentUser   => _currentUser;
   String                  get role          => _role;
-  bool                    get isDark        => _isDark;
-  String                  get lang          => _lang;
+  bool                    get isDark          => _isDark;
+  bool                    get useSystemTheme  => _useSystemTheme;
+  String                  get lang            => _lang;
   bool                    get loading       => _loading;
   String?                 get error         => _error;
   List<BookModel>         get books         => _books;
@@ -40,20 +47,93 @@ class AppProvider extends ChangeNotifier {
   List<UserModel>         get students      => _students;
   List<RoomModel>         get rooms         => _rooms;
   List<SeatBookingModel>  get seatBookings  => _seatBookings;
+  Set<String>             get favorites     => _favorites;
+  Map<String, String>     get socialLinks   => _socialLinks;
+  List<Map<String, String>> get faqItems   => _faqItems;
+  bool isFavorite(String id) => _favorites.contains(id);
 
-  AppProvider() { _loadPrefs(); }
+  List<BookModel> get favoriteBooks =>
+      _books.where((b) => _favorites.contains(b.id)).toList();
+
+  List<BookModel> get historyBooks =>
+      _history
+          .map((id) => _books.where((b) => b.id == id).firstOrNull)
+          .whereType<BookModel>()
+          .toList();
+
+  List<BookModel> get recommendedBooks {
+    if (_favorites.isEmpty) {
+      return ([..._books]..sort((a, b) => b.views.compareTo(a.views)))
+          .take(20)
+          .toList();
+    }
+    final favCats = _books
+        .where((b) => _favorites.contains(b.id))
+        .map((b) => b.category)
+        .toSet();
+    final recs = _books
+        .where((b) => favCats.contains(b.category) && !_favorites.contains(b.id))
+        .toList()
+      ..sort((a, b) => b.views.compareTo(a.views));
+    return recs.isEmpty
+        ? ([..._books]..sort((a, b) => b.views.compareTo(a.views)))
+            .take(20)
+            .toList()
+        : recs;
+  }
+
+  AppProvider() {
+    _loadPrefs();
+    _restoreSession();
+  }
 
   Future<void> _loadPrefs() async {
     final p = await SharedPreferences.getInstance();
-    _isDark = p.getBool('dark') ?? true;
-    _lang   = p.getString('lang') ?? 'uz';
+    _isDark          = p.getBool('dark') ?? true;
+    _useSystemTheme  = p.getBool('systemTheme') ?? false;
+    _lang            = p.getString('lang') ?? 'uz';
+    final histStr    = p.getString('history') ?? '';
+    _history         = histStr.isEmpty ? [] : histStr.split(',');
     notifyListeners();
   }
 
+  /// Ilova qayta ochilganda Firebase Auth sessiyasini tiklaydi
+  Future<void> _restoreSession() async {
+    final firebaseUser = _auth.currentUser;
+    if (firebaseUser == null) return;
+    _loading = true;
+    notifyListeners();
+    try {
+      final doc = await _db.collection('users').doc(firebaseUser.uid).get();
+      if (!doc.exists) {
+        _loading = false;
+        notifyListeners();
+        return;
+      }
+      _currentUser = UserModel.fromFirestore(doc);
+      _role = _currentUser!.role;
+      await _fetchAll();
+    } catch (_) {}
+    _loading = false;
+    notifyListeners();
+  }
+
+  /// Barcha ma'lumotlarni yangilaydi (pull-to-refresh uchun)
+  Future<void> refreshAll() => _fetchAll();
+
   void toggleDark() async {
     _isDark = !_isDark;
+    _useSystemTheme = false;
     final p = await SharedPreferences.getInstance();
     await p.setBool('dark', _isDark);
+    await p.setBool('systemTheme', false);
+    notifyListeners();
+  }
+
+  void toggleSystemTheme() async {
+    _useSystemTheme = !_useSystemTheme;
+    final p = await SharedPreferences.getInstance();
+    await p.setBool('systemTheme', _useSystemTheme);
     notifyListeners();
   }
 
@@ -81,7 +161,7 @@ class AppProvider extends ChangeNotifier {
       _loading = false; notifyListeners();
       return true;
     } on FirebaseAuthException catch (e) {
-      _error = e.message;
+      _error = e.code;
       _loading = false; notifyListeners();
       return false;
     }
@@ -114,7 +194,7 @@ class AppProvider extends ChangeNotifier {
       _loading = false; notifyListeners();
       return true;
     } on FirebaseAuthException catch (e) {
-      _error = e.message;
+      _error = e.code;
       _loading = false; notifyListeners();
       return false;
     }
@@ -135,6 +215,10 @@ class AppProvider extends ChangeNotifier {
       fetchAnnouncements(),
       fetchRooms(),
       fetchSeatBookings(),
+      fetchSocialLinks(),
+      fetchFaqItems(),
+      fetchFavorites(),
+      fetchClosedDays(),
       if (_role == 'librarian') fetchStudents(),
     ]);
     if (_role == 'student') {
@@ -152,6 +236,7 @@ class AppProvider extends ChangeNotifier {
     if (_currentUser == null) return;
     final now = DateTime.now();
     for (final b in _seatBookings) {
+      // 'arrived', 'confirmed', 'left' — talaba kelgan yoki ketgan, no_show emas
       if (b.status != 'active') continue;
       final parts = b.startTime.split(':');
       final startDT = DateTime(b.date.year, b.date.month, b.date.day,
@@ -275,6 +360,75 @@ class AppProvider extends ChangeNotifier {
     return notifs;
   }
 
+  // ── Sevimli kitoblar (Firestore — user-specific) ─────────────────────────────
+
+  Future<void> fetchFavorites() async {
+    if (_currentUser == null) return;
+    try {
+      final snap = await _db
+          .collection('users')
+          .doc(_currentUser!.id)
+          .collection('favorites')
+          .get();
+      _favorites = snap.docs.map((d) => d.id).toSet();
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<void> toggleFavorite(String bookId) async {
+    if (_currentUser == null) return;
+    if (_favorites.contains(bookId)) {
+      _favorites.remove(bookId);
+      notifyListeners();
+      await _db
+          .collection('users')
+          .doc(_currentUser!.id)
+          .collection('favorites')
+          .doc(bookId)
+          .delete();
+    } else {
+      _favorites.add(bookId);
+      notifyListeners();
+      await _db
+          .collection('users')
+          .doc(_currentUser!.id)
+          .collection('favorites')
+          .doc(bookId)
+          .set({'bookId': bookId});
+    }
+  }
+
+  // ── Kutubxona yopiq kunlar ────────────────────────────────────────────────────
+
+  Future<void> fetchClosedDays() async {
+    try {
+      final snap = await _db.collection('blockedDays').get();
+      _closedDays = snap.docs.map(LibraryClosedDayModel.fromFirestore).toList();
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  LibraryClosedDayModel? getClosedDay(DateTime date) =>
+      _closedDays.where((d) => _sameDay(d.date, date)).firstOrNull;
+
+  // ── O'qish tarixi ─────────────────────────────────────────────────────────────
+
+  void addToHistory(String bookId) async {
+    _history.remove(bookId);
+    _history.insert(0, bookId);
+    if (_history.length > 30) _history = _history.sublist(0, 30);
+    final p = await SharedPreferences.getInstance();
+    await p.setString('history', _history.join(','));
+    notifyListeners();
+  }
+
+  Future<void> clearHistory() async {
+    _history.clear();
+    final p = await SharedPreferences.getInstance();
+    await p.remove('history');
+    notifyListeners();
+  }
+
   Future<void> fetchBooks() async {
     final snap = await _db.collection('books').orderBy('addedDate', descending: true).get();
     _books = snap.docs.map(BookModel.fromFirestore).toList();
@@ -291,14 +445,179 @@ class AppProvider extends ChangeNotifier {
 
   Future<void> fetchAnnouncements() async {
     final snap = await _db.collection('announcements').orderBy('date', descending: true).get();
-    _announcements = snap.docs.map(AnnouncementModel.fromFirestore).toList();
+    final all = snap.docs.map(AnnouncementModel.fromFirestore).toList();
+    // Students only see published announcements; librarians see all
+    _announcements = _role == 'librarian'
+        ? all
+        : all.where((a) => a.published).toList();
+    // Pinned first, then by date (already ordered by date desc from Firestore)
+    _announcements.sort((a, b) {
+      if (a.pinned && !b.pinned) return -1;
+      if (!a.pinned && b.pinned) return 1;
+      return b.date.compareTo(a.date);
+    });
     notifyListeners();
+  }
+
+  Future<void> updateAnnouncement(String id, Map<String, dynamic> data) async {
+    await _db.collection('announcements').doc(id).update(data);
+    final i = _announcements.indexWhere((a) => a.id == id);
+    if (i >= 0) {
+      final a = _announcements[i];
+      _announcements[i] = a.copyWith(
+        title: data['title'] as String?,
+        content: data['content'] as String?,
+        type: data['type'] as String?,
+        important: data['important'] as bool?,
+        pinned: data['pinned'] as bool?,
+        published: data['published'] as bool?,
+        imageUrl: data.containsKey('imageUrl') ? data['imageUrl'] as String? : a.imageUrl,
+      );
+      _announcements.sort((a, b) {
+        if (a.pinned && !b.pinned) return -1;
+        if (!a.pinned && b.pinned) return 1;
+        return b.date.compareTo(a.date);
+      });
+      notifyListeners();
+    }
+  }
+
+  Future<void> deleteAnnouncement(String id) async {
+    await _db.collection('announcements').doc(id).delete();
+    _announcements.removeWhere((a) => a.id == id);
+    notifyListeners();
+  }
+
+  Future<void> fetchSocialLinks() async {
+    try {
+      final doc = await _db.collection('settings').doc('social_links').get();
+      if (doc.exists) {
+        final d = doc.data() as Map<String, dynamic>;
+        _socialLinks = {
+          if (d['telegram'] != null && (d['telegram'] as String).isNotEmpty)
+            'telegram': d['telegram'] as String,
+          if (d['instagram'] != null && (d['instagram'] as String).isNotEmpty)
+            'instagram': d['instagram'] as String,
+          if (d['website'] != null && (d['website'] as String).isNotEmpty)
+            'website': d['website'] as String,
+        };
+        notifyListeners();
+      }
+    } catch (_) {}
+  }
+
+  Future<void> saveSocialLinks(Map<String, String> links) async {
+    await _db.collection('settings').doc('social_links').set(links, SetOptions(merge: true));
+    _socialLinks = links;
+    notifyListeners();
+  }
+
+  Future<void> fetchFaqItems() async {
+    try {
+      final snap = await _db.collection('faq').orderBy('order').get();
+      _faqItems = snap.docs.map((d) {
+        final data = d.data() as Map<String, dynamic>;
+        return {'question': data['question'] as String? ?? '', 'answer': data['answer'] as String? ?? ''};
+      }).toList();
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<String> fetchStaticContent(String key) async {
+    try {
+      final doc = await _db.collection('settings').doc(key).get();
+      if (doc.exists) {
+        final d = doc.data() as Map<String, dynamic>;
+        return d['content'] as String? ?? '';
+      }
+    } catch (_) {}
+    return '';
   }
 
   Future<void> fetchStudents() async {
     final snap = await _db.collection('users').where('role', isEqualTo: 'student').get();
     _students = snap.docs.map(UserModel.fromFirestore).toList();
     notifyListeners();
+  }
+
+  /// Kutubxonachi talabaning blokini ochadi (no-show jazosini bekor qiladi)
+  Future<void> unbanStudent(String studentId) async {
+    await _db.collection('users').doc(studentId).update({
+      'bookingBanUntil': FieldValue.delete(),
+      'noShowCount': 0,
+    });
+    final i = _students.indexWhere((s) => s.id == studentId);
+    if (i >= 0) {
+      _students[i] = _students[i].copyWith(
+        noShowCount: 0,
+        bookingBanUntil: DateTime(2000), // past date = no ban
+      );
+      notifyListeners();
+    }
+  }
+
+  /// Talabaning barcha kitob rezervatsiyalarini qaytaradi (librarian uchun)
+  List<ReservationModel> getStudentReservations(String studentId) =>
+      _reservations.where((r) => r.studentId == studentId).toList();
+
+  /// Talabaning barcha izohlarini oladi (barcha kitoblar bo'ylab)
+  Future<List<Map<String, dynamic>>> fetchStudentReviews(String studentId) async {
+    final results = <Map<String, dynamic>>[];
+    for (final book in _books) {
+      final snap = await _db
+          .collection('books').doc(book.id)
+          .collection('reviews')
+          .where('studentId', isEqualTo: studentId)
+          .get();
+      for (final doc in snap.docs) {
+        results.add({
+          'review': ReviewModel.fromFirestore(doc),
+          'bookId': book.id,
+          'bookTitle': book.title,
+          'bookEmoji': book.coverEmoji,
+        });
+      }
+    }
+    results.sort((a, b) =>
+        (b['review'] as ReviewModel).createdAt
+            .compareTo((a['review'] as ReviewModel).createdAt));
+    return results;
+  }
+
+  /// Admin/librarian talabaning izohini o'chiradi
+  Future<void> deleteReview(String bookId, String reviewId) async {
+    await _db.collection('books').doc(bookId)
+        .collection('reviews').doc(reviewId).delete();
+    // Kitob ratingini yangilaymiz
+    final snap = await _db.collection('books').doc(bookId)
+        .collection('reviews').get();
+    final reviews = snap.docs;
+    if (reviews.isEmpty) {
+      await _db.collection('books').doc(bookId).update({'rating': 0, 'reviewCount': 0});
+    } else {
+      final avg = reviews.fold<double>(
+          0, (s, d) => s + ((d.data() as Map)['rating'] ?? 0)) / reviews.length;
+      await _db.collection('books').doc(bookId)
+          .update({'rating': avg, 'reviewCount': reviews.length});
+    }
+    await fetchBooks();
+  }
+
+  Future<void> updateReview(String bookId, String reviewId, String newComment) async {
+    await _db.collection('books').doc(bookId)
+        .collection('reviews').doc(reviewId)
+        .update({'comment': newComment});
+  }
+
+  Future<void> deleteQuestion(String bookId, String questionId) async {
+    await _db.collection('books').doc(bookId)
+        .collection('questions').doc(questionId).delete();
+  }
+
+  Future<void> updateQuestion(String bookId, String questionId, String newText) async {
+    await _db.collection('books').doc(bookId)
+        .collection('questions').doc(questionId)
+        .update({'question': newText});
   }
 
   Future<void> addBook(BookModel book) async {
@@ -379,6 +698,12 @@ class AppProvider extends ChangeNotifier {
       } else if ((res.status == 'return_requested' || res.status == 'active') &&
           status == 'returned') {
         batch.update(bookRef, {'available': FieldValue.increment(1)});
+        // Increment student's booksRead statistic
+        if (res.studentId.isNotEmpty) {
+          batch.update(_db.collection('users').doc(res.studentId), {
+            'booksRead': FieldValue.increment(1),
+          });
+        }
       }
     }
 
@@ -391,11 +716,20 @@ class AppProvider extends ChangeNotifier {
     final imgUrl = ann.imageUrl?.trim().isEmpty == true ? null : ann.imageUrl?.trim();
     final data = AnnouncementModel(
       id: ref.id, title: ann.title, content: ann.content,
-      type: ann.type, important: ann.important, imageUrl: imgUrl,
+      type: ann.type, important: ann.important,
+      pinned: ann.pinned, published: ann.published,
+      imageUrl: imgUrl,
       author: _currentUser!.name, date: DateTime.now(),
     );
     await ref.set(data.toFirestore());
-    _announcements.insert(0, data);
+    if (_role == 'librarian' || data.published) {
+      _announcements.insert(0, data);
+      _announcements.sort((a, b) {
+        if (a.pinned && !b.pinned) return -1;
+        if (!a.pinned && b.pinned) return 1;
+        return b.date.compareTo(a.date);
+      });
+    }
     notifyListeners();
   }
 
@@ -550,11 +884,17 @@ class AppProvider extends ChangeNotifier {
     // Single-field query — no composite index needed; sort client-side
     Query q = _db.collection('seat_bookings');
     if (_role == 'student') q = q.where('studentId', isEqualTo: _currentUser!.id);
+    // librarian/admin: barcha bronlarni oladi (arrived bronlarni tasdiqlash uchun)
     final snap = await q.get();
     _seatBookings = snap.docs.map(SeatBookingModel.fromFirestore).toList()
       ..sort((a, b) => b.date.compareTo(a.date));
     notifyListeners();
   }
+
+  /// 'arrived' statusidagi bronlar — librarian tasdiqlashi kerak
+  List<SeatBookingModel> get pendingArrivalBookings =>
+      _seatBookings.where((b) => b.status == 'arrived').toList()
+        ..sort((a, b) => (a.arrivedAt ?? a.createdAt).compareTo(b.arrivedAt ?? b.createdAt));
 
   static int _timeToMin(String t) {
     final p = t.split(':');
@@ -621,7 +961,8 @@ class AppProvider extends ChangeNotifier {
         .where('roomId', isEqualTo: roomId).get();
     final overlapping = bookSnap.docs.where((doc) {
       final d = doc.data() as Map<String, dynamic>;
-      if (d['status'] != 'active') return false;
+      final st = d['status'] as String? ?? '';
+      if (st != 'active' && st != 'arrived' && st != 'confirmed') return false;
       final bookDate = (d['date'] as Timestamp).toDate();
       return _sameDay(bookDate, date) &&
           _overlaps(startTime, endTime, d['startTime'] as String, d['endTime'] as String);
@@ -663,8 +1004,22 @@ class AppProvider extends ChangeNotifier {
     return null;
   }
 
-  /// Admin talaba kelganini tasdiqlaydi.
-  Future<void> confirmSeatBooking(String id) async {
+  /// Talaba "Keldim" tugmasini bosadi — status 'arrived' bo'ladi, librarian tasdiq kutadi.
+  Future<void> studentArrivedAtSeat(String id) async {
+    final now = DateTime.now();
+    await _db.collection('seat_bookings').doc(id).update({
+      'status': 'arrived',
+      'arrivedAt': Timestamp.fromDate(now),
+    });
+    final i = _seatBookings.indexWhere((b) => b.id == id);
+    if (i >= 0) {
+      _seatBookings[i] = _seatBookings[i].copyWith(status: 'arrived', arrivedAt: now);
+      notifyListeners();
+    }
+  }
+
+  /// Librarian talaba kelganini tasdiqlaydi — status 'confirmed' bo'ladi.
+  Future<void> librarianConfirmArrival(String id) async {
     final now = DateTime.now();
     await _db.collection('seat_bookings').doc(id).update({
       'status': 'confirmed',
@@ -676,6 +1031,9 @@ class AppProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  /// Admin talaba kelganini tasdiqlaydi (eski nom — bron uchun mos).
+  Future<void> confirmSeatBooking(String id) => librarianConfirmArrival(id);
 
   /// Talaba erta ketishini bildiradi — joy bo'shaydi.
   Future<void> leaveSeatEarly(String id) async {
@@ -715,7 +1073,8 @@ class AppProvider extends ChangeNotifier {
           .where('roomId', isEqualTo: roomId).get();
       final overlapping = bookSnap.docs.where((doc) {
         final d = doc.data() as Map<String, dynamic>;
-        if (d['status'] != 'active') return false;
+        final st = d['status'] as String? ?? '';
+        if (st != 'active' && st != 'arrived' && st != 'confirmed') return false;
         final bookDate = (d['date'] as Timestamp).toDate();
         return _sameDay(bookDate, date) &&
             _overlaps(startTime, endTime, d['startTime'] as String, d['endTime'] as String);
@@ -739,6 +1098,21 @@ class AppProvider extends ChangeNotifier {
         .where((b) => b.status == 'active' && _sameDay(b.date, date))
         .toList()
       ..sort((a, b) => _timeToMin(a.startTime).compareTo(_timeToMin(b.startTime)));
+  }
+
+  /// Xona + sana uchun barcha faol bronlar (active | arrived | confirmed).
+  /// Joy sig'imini hisoblash uchun ishlatiladi.
+  Future<List<SeatBookingModel>> fetchOccupiedBookingsForRoomDate(
+      String roomId, DateTime date) async {
+    final snap = await _db
+        .collection('seat_bookings')
+        .where('roomId', isEqualTo: roomId)
+        .get();
+    const active = {'active', 'arrived', 'confirmed'};
+    return snap.docs
+        .map(SeatBookingModel.fromFirestore)
+        .where((b) => active.contains(b.status) && _sameDay(b.date, date))
+        .toList();
   }
 
   /// Berilgan xona va sanaga oid bloklarni qaytaradi.

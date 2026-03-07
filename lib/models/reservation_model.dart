@@ -63,8 +63,10 @@ class AnnouncementModel {
   final String id;
   final String title;
   final String content;
-  final String type; // info | new_books | reminder | survey
+  final String type; // info | important | warning | event | new_books | reminder | survey
   final bool important;
+  final bool pinned;
+  final bool published;
   final String? imageUrl;
   final String author;
   final DateTime date;
@@ -75,6 +77,8 @@ class AnnouncementModel {
     required this.content,
     required this.type,
     required this.important,
+    this.pinned = false,
+    this.published = true,
     this.imageUrl,
     required this.author,
     required this.date,
@@ -88,6 +92,8 @@ class AnnouncementModel {
       content: d['content'] ?? '',
       type: d['type'] ?? 'info',
       important: d['important'] ?? false,
+      pinned: d['pinned'] ?? false,
+      published: d['published'] ?? true,
       imageUrl: d['imageUrl'],
       author: d['author'] ?? '',
       date: (d['date'] as Timestamp).toDate(),
@@ -99,8 +105,34 @@ class AnnouncementModel {
     'content': content,
     'type': type,
     'important': important,
+    'pinned': pinned,
+    'published': published,
     'imageUrl': imageUrl,
     'author': author,
     'date': Timestamp.fromDate(date),
   };
+
+  AnnouncementModel copyWith({
+    String? id,
+    String? title,
+    String? content,
+    String? type,
+    bool? important,
+    bool? pinned,
+    bool? published,
+    String? imageUrl,
+    String? author,
+    DateTime? date,
+  }) => AnnouncementModel(
+    id: id ?? this.id,
+    title: title ?? this.title,
+    content: content ?? this.content,
+    type: type ?? this.type,
+    important: important ?? this.important,
+    pinned: pinned ?? this.pinned,
+    published: published ?? this.published,
+    imageUrl: imageUrl ?? this.imageUrl,
+    author: author ?? this.author,
+    date: date ?? this.date,
+  );
 }

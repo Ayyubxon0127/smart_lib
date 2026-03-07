@@ -34,10 +34,14 @@ class SmartKutubxonaApp extends StatelessWidget {
             title: 'Smart Kutubxona',
             debugShowCheckedModeBanner: false,
             locale: Locale(app.lang),
-            themeMode: app.isDark ? ThemeMode.dark : ThemeMode.light,
+            themeMode: app.useSystemTheme
+                ? ThemeMode.system
+                : (app.isDark ? ThemeMode.dark : ThemeMode.light),
             theme: _buildTheme(Brightness.light),
             darkTheme: _buildTheme(Brightness.dark),
-            home: app.currentUser == null
+            home: app.loading && app.currentUser == null
+                ? const Scaffold(body: Center(child: CircularProgressIndicator()))
+                : app.currentUser == null
                 ? const LoginScreen()
                 : app.role == 'librarian'
                 ? const LibrarianMain()

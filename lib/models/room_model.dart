@@ -55,9 +55,14 @@ class SeatBookingModel {
   final DateTime date;
   final String startTime; // "HH:mm"
   final String endTime;   // "HH:mm"
-  /// 'active' | 'confirmed' | 'left' | 'cancelled' | 'no_show'
+  /// 'active' | 'arrived' | 'confirmed' | 'left' | 'cancelled' | 'no_show'
+  /// active     — bron qilingan, hali kelmagan
+  /// arrived    — talaba "Keldim" bosdi, librarian tasdiqlashini kutmoqda
+  /// confirmed  — librarian tasdiqladi
+  /// left       — talaba erta ketdi
   final String status;
   final DateTime createdAt;
+  final DateTime? arrivedAt;
   final DateTime? confirmedAt;
   final DateTime? leftAt;
 
@@ -72,6 +77,7 @@ class SeatBookingModel {
     required this.endTime,
     this.status = 'active',
     required this.createdAt,
+    this.arrivedAt,
     this.confirmedAt,
     this.leftAt,
   });
@@ -96,6 +102,7 @@ class SeatBookingModel {
       endTime: d['endTime'] ?? '',
       status: d['status'] ?? 'active',
       createdAt: (d['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      arrivedAt: (d['arrivedAt'] as Timestamp?)?.toDate(),
       confirmedAt: (d['confirmedAt'] as Timestamp?)?.toDate(),
       leftAt: (d['leftAt'] as Timestamp?)?.toDate(),
     );
@@ -111,16 +118,18 @@ class SeatBookingModel {
     'endTime': endTime,
     'status': status,
     'createdAt': Timestamp.fromDate(createdAt),
+    if (arrivedAt != null) 'arrivedAt': Timestamp.fromDate(arrivedAt!),
     if (confirmedAt != null) 'confirmedAt': Timestamp.fromDate(confirmedAt!),
     if (leftAt != null) 'leftAt': Timestamp.fromDate(leftAt!),
   };
 
-  SeatBookingModel copyWith({String? status, DateTime? confirmedAt, DateTime? leftAt}) =>
+  SeatBookingModel copyWith({String? status, DateTime? arrivedAt, DateTime? confirmedAt, DateTime? leftAt}) =>
       SeatBookingModel(
         id: id, studentId: studentId, studentName: studentName,
         roomId: roomId, roomName: roomName, date: date,
         startTime: startTime, endTime: endTime, createdAt: createdAt,
         status: status ?? this.status,
+        arrivedAt: arrivedAt ?? this.arrivedAt,
         confirmedAt: confirmedAt ?? this.confirmedAt,
         leftAt: leftAt ?? this.leftAt,
       );
@@ -166,4 +175,26 @@ class RoomBlockModel {
     'reason': reason,
     'createdAt': Timestamp.fromDate(createdAt),
   };
+}
+
+// ── Library closed day (whole-day library closure) ─────────────────────────────
+class LibraryClosedDayModel {
+  final String id;
+  final DateTime date;
+  final String reason;
+
+  const LibraryClosedDayModel({
+    required this.id,
+    required this.date,
+    required this.reason,
+  });
+
+  factory LibraryClosedDayModel.fromFirestore(DocumentSnapshot doc) {
+    final d = doc.data() as Map<String, dynamic>;
+    return LibraryClosedDayModel(
+      id: doc.id,
+      date: (d['date'] as Timestamp).toDate(),
+      reason: d['reason'] as String? ?? '',
+    );
+  }
 }

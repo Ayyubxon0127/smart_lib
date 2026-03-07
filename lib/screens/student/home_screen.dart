@@ -64,14 +64,10 @@ class StudentHomeScreen extends StatelessWidget {
                 ),
             ],
           ),
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            onPressed: () => app.fetchBooks(),
-          ),
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: () => app.fetchBooks(),
+        onRefresh: () => app.refreshAll(),
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
@@ -191,7 +187,7 @@ class StudentHomeScreen extends StatelessWidget {
               )
             else
               SizedBox(
-                height: 160,
+                height: 175,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: recentBooks.length + 1, // +1 = "barchasi" tugmasi
@@ -242,6 +238,7 @@ class StudentHomeScreen extends StatelessWidget {
                           padding: const EdgeInsets.all(10),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Center(child: BookCover(
                                   imageUrl: b.imageUrl, emoji: b.coverEmoji,
@@ -291,6 +288,8 @@ class StudentHomeScreen extends StatelessWidget {
                                 ],
                                 Expanded(
                                   child: Text(a.title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
                                           fontSize: 13, fontWeight: FontWeight.w700)),
                                 ),
