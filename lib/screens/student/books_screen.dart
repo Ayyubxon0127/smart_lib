@@ -1284,11 +1284,10 @@ class _ReviewCardState extends State<_ReviewCard> {
               onTap: () async {
                 final text = ctrl.text.trim();
                 if (text.isEmpty) return;
-                await context
-                    .read<AppProvider>()
-                    .updateReview(widget.bookId, widget.review.id, text);
-                if (context.mounted) Navigator.pop(ctx);
-                widget.onChanged();
+                final app = context.read<AppProvider>();
+                await app.updateReview(widget.bookId, widget.review.id, text);
+                Navigator.pop(ctx);
+                if (mounted) widget.onChanged();
               },
             ),
             const SizedBox(height: 16),
@@ -1515,9 +1514,9 @@ class _QuestionCard extends StatefulWidget {
 }
 
 class _QuestionCardState extends State<_QuestionCard> {
-  bool _showForm  = false;
-  final _answerCtrl = TextEditingController();
-  bool _submitting  = false;
+  bool _showAnswerForm = false;
+  final _answerCtrl   = TextEditingController();
+  bool _submitting    = false;
 
   @override
   void dispose() {
@@ -1525,7 +1524,9 @@ class _QuestionCardState extends State<_QuestionCard> {
     super.dispose();
   }
 
-  Future<void> _submit() async {
+  // ── Submit new answer ──────────────────────────────────────────────────────
+
+  Future<void> _submitAnswer() async {
     final text = _answerCtrl.text.trim();
     if (text.isEmpty || _submitting) return;
     setState(() => _submitting = true);
@@ -1533,16 +1534,15 @@ class _QuestionCardState extends State<_QuestionCard> {
         .read<AppProvider>()
         .answerQuestion(widget.bookId, widget.question.id, text);
     _answerCtrl.clear();
-    setState(() {
-      _showForm   = false;
-      _submitting = false;
-    });
+    setState(() { _showAnswerForm = false; _submitting = false; });
     widget.onAnswered();
   }
 
-  Future<void> _showEditSheet() async {
+  // ── Edit question ──────────────────────────────────────────────────────────
+
+  Future<void> _editQuestion() async {
     final ctrl = TextEditingController(text: widget.question.question);
-    final s = S.of(context);
+    final s = S.read(context);
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1551,16 +1551,13 @@ class _QuestionCardState extends State<_QuestionCard> {
       builder: (ctx) => Padding(
         padding: EdgeInsets.only(
             bottom: MediaQuery.of(ctx).viewInsets.bottom,
-            left: 16,
-            right: 16,
-            top: 20),
+            left: 16, right: 16, top: 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(s.editQuestion,
-                style: const TextStyle(
-                    fontWeight: FontWeight.w700, fontSize: 16)),
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
             const SizedBox(height: 12),
             TextField(
               controller: ctrl,
@@ -1582,11 +1579,10 @@ class _QuestionCardState extends State<_QuestionCard> {
               onTap: () async {
                 final text = ctrl.text.trim();
                 if (text.isEmpty) return;
-                await context
-                    .read<AppProvider>()
-                    .updateQuestion(widget.bookId, widget.question.id, text);
-                if (context.mounted) Navigator.pop(ctx);
-                widget.onAnswered();
+                final app = context.read<AppProvider>();
+                await app.updateQuestion(widget.bookId, widget.question.id, text);
+                Navigator.pop(ctx);
+                if (mounted) widget.onAnswered();
               },
             ),
             const SizedBox(height: 16),
@@ -1597,8 +1593,10 @@ class _QuestionCardState extends State<_QuestionCard> {
     ctrl.dispose();
   }
 
-  Future<void> _confirmDelete() async {
-    final s = S.of(context);
+  // ── Delete question ────────────────────────────────────────────────────────
+
+  Future<void> _deleteQuestion() async {
+    final s = S.read(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -1610,154 +1608,327 @@ class _QuestionCardState extends State<_QuestionCard> {
               child: Text(s.cancel)),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text(s.delete,
-                style: const TextStyle(color: AppColors.red)),
+            child: Text(s.delete, style: const TextStyle(color: AppColors.red)),
           ),
         ],
       ),
     );
     if (confirmed == true && mounted) {
-      await context
-          .read<AppProvider>()
+      await context.read<AppProvider>()
           .deleteQuestion(widget.bookId, widget.question.id);
       widget.onAnswered();
     }
   }
 
+  // ── Edit answer ────────────────────────────────────────────────────────────
+
+  Future<void> _editAnswer() async {
+    final ctrl = TextEditingController(text: widget.question.answer ?? '');
+    final s = S.read(context);
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+            left: 16, right: 16, top: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(s.editAnswer,
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: ctrl,
+              maxLines: 4,
+              autofocus: true,
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Theme.of(ctx).scaffoldBackgroundColor,
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide.none),
+                contentPadding: const EdgeInsets.all(12),
+              ),
+            ),
+            const SizedBox(height: 12),
+            AccentButton(
+              label: s.save,
+              icon: Icons.check,
+              onTap: () async {
+                final text = ctrl.text.trim();
+                if (text.isEmpty) return;
+                final app = context.read<AppProvider>();
+                await app.updateAnswer(widget.bookId, widget.question.id, text);
+                Navigator.pop(ctx);
+                if (mounted) widget.onAnswered();
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+    ctrl.dispose();
+  }
+
+  // ── Delete answer ──────────────────────────────────────────────────────────
+
+  Future<void> _deleteAnswer() async {
+    final s = S.read(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(s.deleteAnswer),
+        content: Text(s.deleteAnswerConfirm),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(s.cancel)),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(s.delete, style: const TextStyle(color: AppColors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      await context.read<AppProvider>()
+          .deleteAnswer(widget.bookId, widget.question.id);
+      widget.onAnswered();
+    }
+  }
+
+  // ── Build ──────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
-    final s = S.of(context);
-    final q = widget.question;
+    final s   = S.of(context);
+    final app = context.read<AppProvider>();
+    final q   = widget.question;
+
+    final isQuestionOwner = app.currentUser?.id == q.studentId;
+    final isAnswerOwner   = app.currentUser?.id == q.answeredById;
+    final isAdmin         = app.role == 'librarian';
+    final canModifyQ      = isQuestionOwner || isAdmin;
+    final canModifyAnswer = isAnswerOwner || isAdmin;
+    // Answer button only visible to librarian (admin answers questions)
+    final canAnswer       = isAdmin && !q.isAnswered;
+
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: AppCard(
-        borderColor:
-            q.isAnswered ? AppColors.green.withOpacity(0.4) : null,
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: q.isAnswered
+                ? AppColors.green.withOpacity(0.35)
+                : Theme.of(context).dividerColor.withOpacity(0.5),
+          ),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Text(q.studentAvatar,
-                    style: const TextStyle(fontSize: 18)),
-                const SizedBox(width: 8),
-                Expanded(
-                    child: Text(q.studentName,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 13))),
-                StatusBadge(
-                  label: q.isAnswered ? s.answeredBy : s.unanswered,
-                  color: q.isAnswered ? AppColors.green : Colors.grey,
-                ),
-                Builder(builder: (context) {
-                  final app = context.read<AppProvider>();
-                  final isOwner = app.currentUser?.id == q.studentId;
-                  final canModify = isOwner || app.role == 'librarian';
-                  if (!canModify) return const SizedBox.shrink();
-                  return PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert, size: 18),
-                    padding: EdgeInsets.zero,
-                    onSelected: (v) {
-                      if (v == 'edit') _showEditSheet();
-                      if (v == 'delete') _confirmDelete();
-                    },
-                    itemBuilder: (_) => [
-                      if (isOwner && !q.isAnswered)
-                        PopupMenuItem(
-                            value: 'edit', child: Text(s.editQuestion)),
-                      PopupMenuItem(
-                          value: 'delete',
-                          child: Text(s.delete,
-                              style:
-                                  const TextStyle(color: AppColors.red))),
-                    ],
-                  );
-                }),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(q.question,
-                style: const TextStyle(fontSize: 13, height: 1.5)),
-            if (q.isAnswered) ...[
-              const Divider(height: 16),
-              Row(
+            // ── Question header ────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 14, 10, 0),
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.reply_rounded,
-                      size: 16, color: AppColors.green),
-                  const SizedBox(width: 6),
+                  // Avatar circle
+                  Container(
+                    width: 36, height: 36,
+                    decoration: BoxDecoration(
+                      color: AppColors.blue.withOpacity(0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      q.studentAvatar,
+                      style: const TextStyle(fontSize: 18),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  // Name + date
                   Expanded(
-                      child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(q.answeredBy ?? '',
-                          style: const TextStyle(
-                              fontSize: 11,
-                              color: AppColors.green,
-                              fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 2),
-                      Text(q.answer!,
-                          style: const TextStyle(
-                              fontSize: 13, height: 1.5)),
-                    ],
-                  )),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(q.studentName,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w700, fontSize: 13),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
+                        const SizedBox(height: 2),
+                        Text(
+                          _formatDate(q.createdAt),
+                          style: TextStyle(
+                              fontSize: 10, color: Colors.grey.shade500),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Answered badge
+                  StatusBadge(
+                    label: q.isAnswered ? s.answeredBy : s.unanswered,
+                    color: q.isAnswered ? AppColors.green : Colors.grey,
+                  ),
+                  // Question 3-dot menu
+                  if (canModifyQ)
+                    PopupMenuButton<String>(
+                      icon: Icon(Icons.more_vert,
+                          size: 18, color: Colors.grey.shade500),
+                      padding: EdgeInsets.zero,
+                      onSelected: (v) {
+                        if (v == 'edit') _editQuestion();
+                        if (v == 'delete') _deleteQuestion();
+                      },
+                      itemBuilder: (_) => [
+                        if (isQuestionOwner && !q.isAnswered)
+                          PopupMenuItem(
+                              value: 'edit', child: Text(s.editQuestion)),
+                        PopupMenuItem(
+                            value: 'delete',
+                            child: Text(s.delete,
+                                style: const TextStyle(color: AppColors.red))),
+                      ],
+                    ),
                 ],
               ),
-            ],
-            if (!q.isAnswered) ...[
-              const SizedBox(height: 8),
-              if (!_showForm)
-                TextButton.icon(
-                  onPressed: () =>
-                      setState(() => _showForm = true),
-                  icon: const Icon(Icons.reply_rounded, size: 16),
-                  label: Text(s.writeAnswer,
-                      style: const TextStyle(fontSize: 12)),
-                  style: TextButton.styleFrom(
-                      foregroundColor: AppColors.blue,
-                      padding: EdgeInsets.zero),
-                )
-              else ...[
-                TextField(
-                  controller: _answerCtrl,
-                  maxLines: 2,
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    hintText: s.yourAnswer,
-                    filled: true,
-                    fillColor:
-                        Theme.of(context).scaffoldBackgroundColor,
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide.none),
-                    contentPadding: const EdgeInsets.all(10),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
+            ),
+
+            // ── Question text ──────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+              child: Text(q.question,
+                  style: const TextStyle(fontSize: 13, height: 1.6)),
+            ),
+
+            // ── Answer section ─────────────────────────────────────
+            if (q.isAnswered) ...[
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 14),
+                child: Divider(height: 20),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 0, 10, 14),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                        child: AccentButton(
-                            label: s.submitAnswer,
-                            icon: Icons.send_outlined,
-                            onTap: _submit,
-                            loading: _submitting)),
+                    const Icon(Icons.reply_rounded,
+                        size: 16, color: AppColors.green),
                     const SizedBox(width: 8),
-                    TextButton(
-                      onPressed: () => setState(() {
-                        _showForm = false;
-                        _answerCtrl.clear();
-                      }),
-                      child: Text(s.cancel),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(q.answeredBy ?? '',
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.green,
+                                  fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 4),
+                          Text(q.answer!,
+                              style: const TextStyle(
+                                  fontSize: 13, height: 1.6)),
+                        ],
+                      ),
                     ),
+                    // Answer 3-dot menu
+                    if (canModifyAnswer)
+                      PopupMenuButton<String>(
+                        icon: Icon(Icons.more_vert,
+                            size: 18, color: Colors.grey.shade500),
+                        padding: EdgeInsets.zero,
+                        onSelected: (v) {
+                          if (v == 'edit') _editAnswer();
+                          if (v == 'delete') _deleteAnswer();
+                        },
+                        itemBuilder: (_) => [
+                          PopupMenuItem(
+                              value: 'edit', child: Text(s.editAnswer)),
+                          PopupMenuItem(
+                              value: 'delete',
+                              child: Text(s.deleteAnswer,
+                                  style: const TextStyle(color: AppColors.red))),
+                        ],
+                      ),
                   ],
                 ),
-              ],
+              ),
+            ] else ...[
+              // ── Answer form (librarian only) ─────────────────────
+              if (canAnswer)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
+                  child: !_showAnswerForm
+                      ? TextButton.icon(
+                          onPressed: () =>
+                              setState(() => _showAnswerForm = true),
+                          icon: const Icon(Icons.reply_rounded, size: 16),
+                          label: Text(s.writeAnswer,
+                              style: const TextStyle(fontSize: 12)),
+                          style: TextButton.styleFrom(
+                              foregroundColor: AppColors.blue,
+                              padding: EdgeInsets.zero),
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            TextField(
+                              controller: _answerCtrl,
+                              maxLines: 3,
+                              autofocus: true,
+                              decoration: InputDecoration(
+                                hintText: s.yourAnswer,
+                                filled: true,
+                                fillColor:
+                                    Theme.of(context).scaffoldBackgroundColor,
+                                border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide: BorderSide.none),
+                                contentPadding: const EdgeInsets.all(10),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: AccentButton(
+                                    label: s.submitAnswer,
+                                    icon: Icons.send_outlined,
+                                    onTap: _submitAnswer,
+                                    loading: _submitting,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                TextButton(
+                                  onPressed: () => setState(() {
+                                    _showAnswerForm = false;
+                                    _answerCtrl.clear();
+                                  }),
+                                  child: Text(s.cancel),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                )
+              else
+                const SizedBox(height: 14),
             ],
           ],
         ),
       ),
     );
+  }
+
+  String _formatDate(DateTime dt) {
+    return '${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')}.${dt.year}';
   }
 }
 
@@ -1792,3 +1963,4 @@ class _InfoBanner extends StatelessWidget {
     );
   }
 }
+
