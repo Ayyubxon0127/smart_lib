@@ -14,67 +14,23 @@ import 'recommended_books_screen.dart';
 import 'faq_screen.dart';
 import 'static_content_screen.dart';
 
-// ── Main Screen ───────────────────────────────────────────────────────────────
+// ── Shared snack helper ────────────────────────────────────────────────────────
 
-class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
-
-  @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+void _showSnack(BuildContext ctx, String msg, Color color) {
+  ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+    content: Text(msg, style: const TextStyle(fontWeight: FontWeight.w600)),
+    backgroundColor: color,
+    behavior: SnackBarBehavior.floating,
+    margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    duration: const Duration(seconds: 3),
+  ));
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
-  bool _notifBookReturn = true;
-  bool _notifNewBooks   = true;
-  bool _notifFines      = true;
+// ── Main Settings Screen ───────────────────────────────────────────────────────
 
-  @override
-  void initState() {
-    super.initState();
-    _loadNotifPrefs();
-  }
-
-  Future<void> _loadNotifPrefs() async {
-    final p = await SharedPreferences.getInstance();
-    if (!mounted) return;
-    setState(() {
-      _notifBookReturn = p.getBool('notif_book_return') ?? true;
-      _notifNewBooks   = p.getBool('notif_new_books')   ?? true;
-      _notifFines      = p.getBool('notif_fines')       ?? true;
-    });
-  }
-
-  Future<void> _saveNotif(String key, bool val) async {
-    final p = await SharedPreferences.getInstance();
-    await p.setBool(key, val);
-  }
-
-  Future<void> _sendPasswordReset(BuildContext ctx) async {
-    final email = context.read<AppProvider>().currentUser?.email;
-    if (email == null) return;
-    try {
-      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
-      if (!mounted) return;
-      _showSnack(ctx, S.read(ctx).passwordResetSent, AppColors.green);
-    } catch (_) {
-      if (!mounted) return;
-      _showSnack(ctx, S.read(ctx).errorOccurred, AppColors.red);
-    }
-  }
-
-  void _showSnack(BuildContext ctx, String msg, Color color) {
-    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-      content: Text(msg, style: const TextStyle(fontWeight: FontWeight.w600)),
-      backgroundColor: color,
-      behavior: SnackBarBehavior.floating,
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      duration: const Duration(seconds: 3),
-    ));
-  }
-
-  void _showComingSoon(BuildContext ctx) =>
-      _showSnack(ctx, S.read(ctx).comingSoon, AppColors.accent.withOpacity(0.9));
+class SettingsScreen extends StatelessWidget {
+  const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -85,18 +41,99 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(s.settings)),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 40),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
         children: [
-
-          // ── 1. Profile ────────────────────────────────────────────────
-          const SizedBox(height: 8),
+          // ── Profile card ─────────────────────────────────────────────
           _ProfileCard(user: user, role: app.role),
+          const SizedBox(height: 20),
 
-          // ── 2. Appearance ─────────────────────────────────────────────
-          SectionTitle(label: s.appearance, icon: Icons.palette_outlined),
+          // ── Section tiles ─────────────────────────────────────────────
+          _SettingsCard(tiles: [
+            _NavTile(
+              icon: Icons.palette_outlined,
+              iconColor: AppColors.purple,
+              title: s.appearance,
+              subtitle: _appearanceSub(app, s),
+              onTap: () => _push(context, const _AppearancePage()),
+            ),
+            _NavTile(
+              icon: Icons.library_books_outlined,
+              iconColor: AppColors.blue,
+              title: s.libraryPrefs,
+              subtitle: _librarySub(app, s),
+              onTap: () => _push(context, const _LibraryPage()),
+            ),
+            _NavTile(
+              icon: Icons.notifications_outlined,
+              iconColor: AppColors.orange,
+              title: s.notificationSettings,
+              onTap: () => _push(context, const _NotificationsPage()),
+            ),
+            _NavTile(
+              icon: Icons.help_outline_rounded,
+              iconColor: AppColors.green,
+              title: s.support,
+              onTap: () => _push(context, const _HelpPage()),
+            ),
+            _NavTile(
+              icon: Icons.info_outline_rounded,
+              iconColor: Colors.grey,
+              title: s.appInfo,
+              subtitle: 'v1.0.0',
+              onTap: () => _push(context, const _AboutPage()),
+            ),
+            _NavTile(
+              icon: Icons.manage_accounts_outlined,
+              iconColor: AppColors.accent,
+              title: s.account,
+              subtitle: user?.email,
+              onTap: () => _push(context, const _AccountPage()),
+            ),
+          ]),
+        ],
+      ),
+    );
+  }
+
+  void _push(BuildContext ctx, Widget page) =>
+      Navigator.push(ctx, MaterialPageRoute(builder: (_) => page));
+
+  String _appearanceSub(AppProvider app, S s) {
+    final theme = app.isDark ? s.darkMode : s.lightMode;
+    final lang  = app.lang == 'uz' ? "O'zbek"
+                : app.lang == 'en' ? 'English'
+                : 'Русский';
+    return '$theme • $lang';
+  }
+
+  String? _librarySub(AppProvider app, S s) {
+    final n = app.favorites.length;
+    if (n == 0) return null;
+    return s.lang == 'uz' ? '$n ta sevimli'
+         : s.lang == 'en' ? '$n favorites'
+         : '$n избранных';
+  }
+}
+
+// ── 1. Appearance Page ────────────────────────────────────────────────────────
+
+class _AppearancePage extends StatelessWidget {
+  const _AppearancePage();
+
+  @override
+  Widget build(BuildContext context) {
+    final app = context.watch<AppProvider>();
+    final s   = S.of(context);
+    return Scaffold(
+      appBar: AppBar(title: Text(s.appearance)),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
+        children: [
           _SettingsCard(tiles: [
             _ToggleTile(
-              icon: app.isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+              icon: app.isDark
+                  ? Icons.dark_mode_rounded
+                  : Icons.light_mode_rounded,
               iconColor: AppColors.purple,
               title: app.isDark ? s.darkMode : s.lightMode,
               value: app.isDark,
@@ -110,23 +147,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
               value: app.useSystemTheme,
               onChanged: (_) => app.toggleSystemTheme(),
             ),
-            _LangTile(),
+            const _LangTile(),
           ]),
+        ],
+      ),
+    );
+  }
+}
 
-          // ── 3. Library preferences ─────────────────────────────────────
-          SectionTitle(label: s.libraryPrefs, icon: Icons.library_books_outlined),
+// ── 2. Library Page ───────────────────────────────────────────────────────────
+
+class _LibraryPage extends StatelessWidget {
+  const _LibraryPage();
+
+  @override
+  Widget build(BuildContext context) {
+    final app = context.watch<AppProvider>();
+    final s   = S.of(context);
+    final n   = app.favorites.length;
+    return Scaffold(
+      appBar: AppBar(title: Text(s.libraryPrefs)),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
+        children: [
           _SettingsCard(tiles: [
             _NavTile(
               icon: Icons.favorite_rounded,
               iconColor: AppColors.red,
               title: s.favoriteBooks,
-              subtitle: app.favorites.isEmpty
-                  ? null
-                  : s.lang == 'uz'
-                      ? '${app.favorites.length} ta kitob'
-                      : s.lang == 'en'
-                          ? '${app.favorites.length} books'
-                          : '${app.favorites.length} книг',
+              subtitle: n == 0 ? null
+                  : s.lang == 'uz' ? '$n ta kitob'
+                  : s.lang == 'en' ? '$n books'
+                  : '$n книг',
               onTap: () => Navigator.push(context,
                   MaterialPageRoute(builder: (_) => const FavoriteBooksScreen())),
             ),
@@ -145,48 +197,104 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   MaterialPageRoute(builder: (_) => const RecommendedBooksScreen())),
             ),
           ]),
+        ],
+      ),
+    );
+  }
+}
 
-          // ── 4. Notifications ──────────────────────────────────────────
-          SectionTitle(label: s.notificationSettings, icon: Icons.notifications_outlined),
+// ── 3. Notifications Page ─────────────────────────────────────────────────────
+
+class _NotificationsPage extends StatefulWidget {
+  const _NotificationsPage();
+
+  @override
+  State<_NotificationsPage> createState() => _NotificationsPageState();
+}
+
+class _NotificationsPageState extends State<_NotificationsPage> {
+  bool _bookReturn = true;
+  bool _newBooks   = true;
+  bool _fines      = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final p = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _bookReturn = p.getBool('notif_book_return') ?? true;
+      _newBooks   = p.getBool('notif_new_books')   ?? true;
+      _fines      = p.getBool('notif_fines')       ?? true;
+    });
+  }
+
+  Future<void> _save(String key, bool val) async =>
+      (await SharedPreferences.getInstance()).setBool(key, val);
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    return Scaffold(
+      appBar: AppBar(title: Text(s.notificationSettings)),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
+        children: [
           _SettingsCard(tiles: [
             _ToggleTile(
               icon: Icons.menu_book_outlined,
               iconColor: AppColors.orange,
               title: s.bookReturnReminders,
-              value: _notifBookReturn,
+              value: _bookReturn,
               onChanged: (v) {
-                setState(() => _notifBookReturn = v);
-                _saveNotif('notif_book_return', v);
+                setState(() => _bookReturn = v);
+                _save('notif_book_return', v);
               },
             ),
             _ToggleTile(
               icon: Icons.new_releases_outlined,
               iconColor: AppColors.blue,
               title: s.newBookAlerts,
-              value: _notifNewBooks,
+              value: _newBooks,
               onChanged: (v) {
-                setState(() => _notifNewBooks = v);
-                _saveNotif('notif_new_books', v);
+                setState(() => _newBooks = v);
+                _save('notif_new_books', v);
               },
             ),
             _ToggleTile(
               icon: Icons.warning_amber_rounded,
               iconColor: AppColors.red,
               title: s.finesNotifications,
-              value: _notifFines,
+              value: _fines,
               onChanged: (v) {
-                setState(() => _notifFines = v);
-                _saveNotif('notif_fines', v);
+                setState(() => _fines = v);
+                _save('notif_fines', v);
               },
             ),
           ]),
+        ],
+      ),
+    );
+  }
+}
 
-          // ── 5. Social networks ─────────────────────────────────────────
-          SectionTitle(label: s.socialNetworks, icon: Icons.public_rounded),
-          _SocialLinksCard(onShowSnack: _showSnack),
+// ── 4. Help Page ──────────────────────────────────────────────────────────────
 
-          // ── 6. Support ────────────────────────────────────────────────
-          SectionTitle(label: s.support, icon: Icons.support_agent_outlined),
+class _HelpPage extends StatelessWidget {
+  const _HelpPage();
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    return Scaffold(
+      appBar: AppBar(title: Text(s.support)),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
+        children: [
           _SettingsCard(tiles: [
             _NavTile(
               icon: Icons.quiz_outlined,
@@ -201,14 +309,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
               title: s.emailSupport,
               subtitle: 'support@smartlib.uz',
               onTap: () {
-                Clipboard.setData(const ClipboardData(text: 'support@smartlib.uz'));
+                Clipboard.setData(
+                    const ClipboardData(text: 'support@smartlib.uz'));
                 _showSnack(context, S.read(context).emailCopied, AppColors.green);
               },
             ),
           ]),
+          const SizedBox(height: 20),
+          SectionTitle(label: s.socialNetworks, icon: Icons.public_rounded),
+          _SocialLinksCard(onShowSnack: _showSnack),
+        ],
+      ),
+    );
+  }
+}
 
-          // ── 7. App info ───────────────────────────────────────────────
-          SectionTitle(label: s.appInfo, icon: Icons.info_outline_rounded),
+// ── 5. About Page ─────────────────────────────────────────────────────────────
+
+class _AboutPage extends StatelessWidget {
+  const _AboutPage();
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    return Scaffold(
+      appBar: AppBar(title: Text(s.appInfo)),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
+        children: [
           _SettingsCard(tiles: [
             _InfoTile(
               icon: Icons.tag_rounded,
@@ -220,28 +348,64 @@ class _SettingsScreenState extends State<SettingsScreen> {
               icon: Icons.shield_outlined,
               iconColor: AppColors.blue,
               title: s.privacyPolicy,
-              onTap: () => Navigator.push(context, MaterialPageRoute(
-                  builder: (_) => StaticContentScreen(
-                    titleKey: s.privacyPolicy,
-                    firestoreKey: 'privacy_policy',
-                    fallback: s.privacyPolicyContent,
-                  ))),
+              onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => StaticContentScreen(
+                            titleKey: s.privacyPolicy,
+                            firestoreKey: 'privacy_policy',
+                            fallback: s.privacyPolicyContent,
+                          ))),
             ),
             _NavTile(
               icon: Icons.gavel_rounded,
               iconColor: AppColors.purple,
               title: s.termsOfService,
-              onTap: () => Navigator.push(context, MaterialPageRoute(
-                  builder: (_) => StaticContentScreen(
-                    titleKey: s.termsOfService,
-                    firestoreKey: 'terms_of_service',
-                    fallback: s.termsContent,
-                  ))),
+              onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => StaticContentScreen(
+                            titleKey: s.termsOfService,
+                            firestoreKey: 'terms_of_service',
+                            fallback: s.termsContent,
+                          ))),
             ),
           ]),
+        ],
+      ),
+    );
+  }
+}
 
-          // ── 7. Account ────────────────────────────────────────────────
-          SectionTitle(label: s.account, icon: Icons.manage_accounts_outlined),
+// ── 6. Account Page ───────────────────────────────────────────────────────────
+
+class _AccountPage extends StatelessWidget {
+  const _AccountPage();
+
+  Future<void> _sendPasswordReset(BuildContext ctx) async {
+    final email = ctx.read<AppProvider>().currentUser?.email;
+    if (email == null) return;
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      if (ctx.mounted) {
+        _showSnack(ctx, S.read(ctx).passwordResetSent, AppColors.green);
+      }
+    } catch (_) {
+      if (ctx.mounted) {
+        _showSnack(ctx, S.read(ctx).errorOccurred, AppColors.red);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s    = S.of(context);
+    final user = context.watch<AppProvider>().currentUser;
+    return Scaffold(
+      appBar: AppBar(title: Text(s.account)),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
+        children: [
           _SettingsCard(tiles: [
             _NavTile(
               icon: Icons.lock_reset_rounded,
@@ -251,9 +415,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onTap: () => _sendPasswordReset(context),
             ),
           ]),
-
           const SizedBox(height: 16),
-          _LogoutButton(),
+          const _LogoutButton(),
         ],
       ),
     );
@@ -269,7 +432,7 @@ class _ProfileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final s     = S.of(context);
+    final s      = S.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
@@ -314,15 +477,11 @@ class _ProfileCard extends StatelessWidget {
                       ],
                     ),
                     border: Border.all(
-                      color: AppColors.accent.withOpacity(0.4),
-                      width: 2,
-                    ),
+                        color: AppColors.accent.withOpacity(0.4), width: 2),
                   ),
                   alignment: Alignment.center,
-                  child: Text(
-                    user?.avatar ?? '👤',
-                    style: const TextStyle(fontSize: 32),
-                  ),
+                  child: Text(user?.avatar ?? '👤',
+                      style: const TextStyle(fontSize: 32)),
                 ),
                 const SizedBox(width: 16),
 
@@ -334,33 +493,34 @@ class _ProfileCard extends StatelessWidget {
                       Text(
                         user?.name ?? '',
                         style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.2,
-                        ),
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.2),
                       ),
                       const SizedBox(height: 3),
                       Text(
                         user?.email ?? '',
                         style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade500,
-                        ),
+                            fontSize: 12, color: Colors.grey.shade500),
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 8),
                       Wrap(spacing: 6, runSpacing: 4, children: [
                         StatusBadge(
-                          label: role == 'librarian' ? s.librarian : s.student,
+                          label:
+                              role == 'librarian' ? s.librarian : s.student,
                           color: AppColors.accent,
                         ),
                         if (user?.degree != null)
                           StatusBadge(
-                            label: user!.degree == 'magistr' ? s.magistr : s.bakalavr,
+                            label: user!.degree == 'magistr'
+                                ? s.magistr
+                                : s.bakalavr,
                             color: AppColors.purple,
                           ),
                         if (user?.group != null)
-                          StatusBadge(label: user!.group!, color: AppColors.blue),
+                          StatusBadge(
+                              label: user!.group!, color: AppColors.blue),
                       ]),
                     ],
                   ),
@@ -368,11 +528,12 @@ class _ProfileCard extends StatelessWidget {
               ],
             ),
 
-            // Extra info row
+            // Extra info
             if (user?.direction != null || user?.bio != null) ...[
               const SizedBox(height: 14),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
                   color: isDark
                       ? Colors.white.withOpacity(0.04)
@@ -388,15 +549,15 @@ class _ProfileCard extends StatelessWidget {
                             size: 13, color: Colors.grey.shade500),
                         const SizedBox(width: 6),
                         Expanded(
-                          child: Text(
-                            user!.direction!,
-                            style: TextStyle(
-                                fontSize: 11, color: Colors.grey.shade500),
-                          ),
+                          child: Text(user!.direction!,
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey.shade500)),
                         ),
                       ]),
                     if (user?.bio != null) ...[
-                      if (user?.direction != null) const SizedBox(height: 4),
+                      if (user?.direction != null)
+                        const SizedBox(height: 4),
                       Text(
                         '"${user!.bio}"',
                         style: TextStyle(
@@ -426,7 +587,8 @@ class _ProfileCard extends StatelessWidget {
                     style: const TextStyle(fontWeight: FontWeight.w700)),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.accent,
-                  side: BorderSide(color: AppColors.accent.withOpacity(0.5)),
+                  side:
+                      BorderSide(color: AppColors.accent.withOpacity(0.5)),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
@@ -440,7 +602,7 @@ class _ProfileCard extends StatelessWidget {
   }
 }
 
-// ── Settings Card (groups tiles with dividers) ────────────────────────────────
+// ── Settings Card ─────────────────────────────────────────────────────────────
 
 class _SettingsCard extends StatelessWidget {
   final List<Widget> tiles;
@@ -453,8 +615,7 @@ class _SettingsCard extends StatelessWidget {
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: Theme.of(context).dividerColor.withOpacity(0.5),
-        ),
+            color: Theme.of(context).dividerColor.withOpacity(0.5)),
       ),
       child: Column(
         children: [
@@ -464,7 +625,6 @@ class _SettingsCard extends StatelessWidget {
               Divider(
                 height: 1,
                 indent: 56,
-                endIndent: 0,
                 color: Theme.of(context).dividerColor.withOpacity(0.4),
               ),
           ],
@@ -535,7 +695,8 @@ class _NavTile extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(subtitle!,
                         style: TextStyle(
-                            fontSize: 11, color: Colors.grey.shade500)),
+                            fontSize: 11, color: Colors.grey.shade500),
+                        overflow: TextOverflow.ellipsis),
                   ],
                 ],
               ),
@@ -586,8 +747,8 @@ class _ToggleTile extends StatelessWidget {
                 if (subtitle != null) ...[
                   const SizedBox(height: 2),
                   Text(subtitle!,
-                      style:
-                          TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                      style: TextStyle(
+                          fontSize: 11, color: Colors.grey.shade500)),
                 ],
               ],
             ),
@@ -607,7 +768,7 @@ class _ToggleTile extends StatelessWidget {
   }
 }
 
-// ── Info Tile (read-only value) ───────────────────────────────────────────────
+// ── Info Tile (read-only) ─────────────────────────────────────────────────────
 
 class _InfoTile extends StatelessWidget {
   final IconData icon;
@@ -688,8 +849,7 @@ class _LangTile extends StatelessWidget {
 
 class _LangBtn extends StatelessWidget {
   final String code, label, flag;
-  const _LangBtn(
-      {required this.code, required this.label, required this.flag});
+  const _LangBtn({required this.code, required this.label, required this.flag});
 
   @override
   Widget build(BuildContext context) {
@@ -740,9 +900,8 @@ class _SocialLinksCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final links = context.watch<AppProvider>().socialLinks;
-    final s = S.of(context);
-
+    final links     = context.watch<AppProvider>().socialLinks;
+    final s         = S.of(context);
     final telegram  = links['telegram'];
     final instagram = links['instagram'];
     final website   = links['website'];
@@ -756,10 +915,13 @@ class _SocialLinksCard extends StatelessWidget {
           subtitle: telegram,
           onTap: () {
             Clipboard.setData(ClipboardData(text: telegram));
-            onShowSnack(context,
-                s.lang == 'uz' ? 'Telegram havolasi nusxalandi' :
-                s.lang == 'en' ? 'Telegram link copied' : 'Ссылка Telegram скопирована',
-                AppColors.blue);
+            onShowSnack(
+              context,
+              s.lang == 'uz' ? 'Telegram havolasi nusxalandi'
+                  : s.lang == 'en' ? 'Telegram link copied'
+                  : 'Ссылка Telegram скопирована',
+              AppColors.blue,
+            );
           },
         ),
       if (instagram != null)
@@ -770,10 +932,13 @@ class _SocialLinksCard extends StatelessWidget {
           subtitle: instagram,
           onTap: () {
             Clipboard.setData(ClipboardData(text: instagram));
-            onShowSnack(context,
-                s.lang == 'uz' ? 'Instagram havolasi nusxalandi' :
-                s.lang == 'en' ? 'Instagram link copied' : 'Ссылка Instagram скопирована',
-                const Color(0xFFE91E8C));
+            onShowSnack(
+              context,
+              s.lang == 'uz' ? 'Instagram havolasi nusxalandi'
+                  : s.lang == 'en' ? 'Instagram link copied'
+                  : 'Ссылка Instagram скопирована',
+              const Color(0xFFE91E8C),
+            );
           },
         ),
       if (website != null)
@@ -784,10 +949,13 @@ class _SocialLinksCard extends StatelessWidget {
           subtitle: website,
           onTap: () {
             Clipboard.setData(ClipboardData(text: website));
-            onShowSnack(context,
-                s.lang == 'uz' ? 'Veb-sayt havolasi nusxalandi' :
-                s.lang == 'en' ? 'Website link copied' : 'Ссылка сайта скопирована',
-                AppColors.green);
+            onShowSnack(
+              context,
+              s.lang == 'uz' ? 'Veb-sayt havolasi nusxalandi'
+                  : s.lang == 'en' ? 'Website link copied'
+                  : 'Ссылка сайта скопирована',
+              AppColors.green,
+            );
           },
         ),
     ];
@@ -796,13 +964,13 @@ class _SocialLinksCard extends StatelessWidget {
       return Padding(
         padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
         child: Text(
-          s.lang == 'uz' ? 'Ijtimoiy tarmoq havolalari qo\'shilmagan' :
-          s.lang == 'en' ? 'No social links added' : 'Ссылки не добавлены',
+          s.lang == 'uz' ? "Ijtimoiy tarmoq havolalari qo'shilmagan"
+              : s.lang == 'en' ? 'No social links added'
+              : 'Ссылки не добавлены',
           style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
         ),
       );
     }
-
     return _SettingsCard(tiles: tiles);
   }
 }
@@ -840,7 +1008,8 @@ class _LogoutButton extends StatelessWidget {
                 ),
                 TextButton(
                   onPressed: () => Navigator.pop(ctx, true),
-                  style: TextButton.styleFrom(foregroundColor: AppColors.red),
+                  style:
+                      TextButton.styleFrom(foregroundColor: AppColors.red),
                   child: Text(s.logout,
                       style: const TextStyle(fontWeight: FontWeight.w700)),
                 ),
@@ -858,8 +1027,8 @@ class _LogoutButton extends StatelessWidget {
         style: OutlinedButton.styleFrom(
           side: BorderSide(color: AppColors.red.withOpacity(0.4)),
           padding: const EdgeInsets.symmetric(vertical: 14),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14)),
         ),
       ),
     );
@@ -879,13 +1048,14 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
   final _phoneCtrl = TextEditingController();
   final _groupCtrl = TextEditingController();
   final _bioCtrl   = TextEditingController();
-  String _degree   = 'bakalavr';
-  String _faculty  = '';
-  String _direction= '';
-  String _avatar   = '👨‍🎓';
-  bool   _saving   = false;
+  String _degree    = 'bakalavr';
+  String _faculty   = '';
+  String _direction = '';
+  String _avatar    = '👨‍🎓';
+  bool   _saving    = false;
 
-  final _avatars = ['👨‍🎓','👩‍🎓','👨‍💻','👩‍💻','👨‍🔬','👩‍🔬','🧑‍💼','👨‍🏫','👩‍🏫','🧑‍🎓'];
+  final _avatars = ['👨‍🎓','👩‍🎓','👨‍💻','👩‍💻','👨‍🔬','👩‍🔬',
+                    '🧑‍💼','👨‍🏫','👩‍🏫','🧑‍🎓'];
 
   @override
   void initState() {
@@ -904,18 +1074,29 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
   }
 
   @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _phoneCtrl.dispose();
+    _groupCtrl.dispose();
+    _bioCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final app       = context.watch<AppProvider>();
-    final s         = S.of(context);
-    final isStudent = app.role == 'student';
+    final app        = context.watch<AppProvider>();
+    final s          = S.of(context);
+    final isStudent  = app.role == 'student';
     final selFaculty = kFacultyDirections[_faculty];
 
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).scaffoldBackgroundColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius:
+            const BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -936,32 +1117,38 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
               children: [
-                // Avatar
+                // Avatar picker
                 SizedBox(
                   height: 54,
                   child: ListView(
                     scrollDirection: Axis.horizontal,
                     children: _avatars
                         .map((av) => GestureDetector(
-                              onTap: () => setState(() => _avatar = av),
+                              onTap: () =>
+                                  setState(() => _avatar = av),
                               child: Container(
-                                margin: const EdgeInsets.only(right: 8),
+                                margin:
+                                    const EdgeInsets.only(right: 8),
                                 width: 48,
                                 height: 48,
                                 decoration: BoxDecoration(
                                   border: Border.all(
-                                      color: _avatar == av
-                                          ? AppColors.accent
-                                          : Colors.grey.shade300,
-                                      width: 2),
-                                  borderRadius: BorderRadius.circular(12),
+                                    color: _avatar == av
+                                        ? AppColors.accent
+                                        : Colors.grey.shade300,
+                                    width: 2,
+                                  ),
+                                  borderRadius:
+                                      BorderRadius.circular(12),
                                   color: _avatar == av
-                                      ? AppColors.accent.withOpacity(0.1)
+                                      ? AppColors.accent
+                                          .withOpacity(0.1)
                                       : null,
                                 ),
                                 alignment: Alignment.center,
                                 child: Text(av,
-                                    style: const TextStyle(fontSize: 24)),
+                                    style: const TextStyle(
+                                        fontSize: 24)),
                               ),
                             ))
                         .toList(),
@@ -985,7 +1172,8 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                   AppTextField(
                       hint: s.group,
                       controller: _groupCtrl,
-                      prefix: const Icon(Icons.group_outlined, size: 18)),
+                      prefix:
+                          const Icon(Icons.group_outlined, size: 18)),
                   const SizedBox(height: 16),
 
                   Text(s.educationLevel,
@@ -1000,8 +1188,8 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                         value: 'bakalavr',
                         group: _degree,
                         onTap: () => setState(() {
-                              _degree = 'bakalavr';
-                              _faculty = '';
+                              _degree    = 'bakalavr';
+                              _faculty   = '';
                               _direction = '';
                             })),
                     const SizedBox(width: 10),
@@ -1010,8 +1198,8 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                         value: 'magistr',
                         group: _degree,
                         onTap: () => setState(() {
-                              _degree = 'magistr';
-                              _faculty = 'Magistratura';
+                              _degree    = 'magistr';
+                              _faculty   = 'Magistratura';
                               _direction = '';
                             })),
                   ]),
@@ -1025,19 +1213,20 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                             color: Colors.grey)),
                     const SizedBox(height: 8),
                     ...kFacultyNames.map((f) => GestureDetector(
-                          onTap: () =>
-                              setState(() {
-                                _faculty = f;
-                                _direction = '';
-                              }),
+                          onTap: () => setState(() {
+                            _faculty   = f;
+                            _direction = '';
+                          }),
                           child: Container(
-                            margin: const EdgeInsets.only(bottom: 8),
+                            margin:
+                                const EdgeInsets.only(bottom: 8),
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
                               color: _faculty == f
                                   ? AppColors.accent.withOpacity(0.1)
                                   : Theme.of(context).cardColor,
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius:
+                                  BorderRadius.circular(12),
                               border: Border.all(
                                   color: _faculty == f
                                       ? AppColors.accent
@@ -1067,15 +1256,18 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                           runSpacing: 8,
                           children: selFaculty
                               .map((d) => GestureDetector(
-                                    onTap: () =>
-                                        setState(() => _direction = d),
+                                    onTap: () => setState(
+                                        () => _direction = d),
                                     child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 14, vertical: 8),
+                                      padding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 14,
+                                              vertical: 8),
                                       decoration: BoxDecoration(
                                         color: _direction == d
                                             ? AppColors.accent
-                                            : Theme.of(context).cardColor,
+                                            : Theme.of(context)
+                                                .cardColor,
                                         borderRadius:
                                             BorderRadius.circular(20),
                                         border: Border.all(
@@ -1083,12 +1275,14 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                                                 ? AppColors.accent
                                                 : Theme.of(context)
                                                     .dividerColor
-                                                    .withOpacity(0.5)),
+                                                    .withOpacity(
+                                                        0.5)),
                                       ),
                                       child: Text(d,
                                           style: TextStyle(
                                               fontSize: 12,
-                                              fontWeight: FontWeight.w600,
+                                              fontWeight:
+                                                  FontWeight.w600,
                                               color: _direction == d
                                                   ? Colors.black
                                                   : null)),
@@ -1106,47 +1300,56 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                             fontWeight: FontWeight.w700,
                             color: Colors.grey)),
                     const SizedBox(height: 8),
-                    ...kMagistrDirections.asMap().entries.map((e) =>
-                        GestureDetector(
-                          onTap: () =>
-                              setState(() => _direction = e.value),
-                          child: Container(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 11),
-                            decoration: BoxDecoration(
-                              color: _direction == e.value
-                                  ? AppColors.accent.withOpacity(0.1)
-                                  : Theme.of(context).cardColor,
-                              borderRadius: BorderRadius.circular(11),
-                              border: Border.all(
+                    ...kMagistrDirections
+                        .asMap()
+                        .entries
+                        .map((e) => GestureDetector(
+                              onTap: () => setState(
+                                  () => _direction = e.value),
+                              child: Container(
+                                margin: const EdgeInsets.only(
+                                    bottom: 8),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 11),
+                                decoration: BoxDecoration(
                                   color: _direction == e.value
                                       ? AppColors.accent
-                                      : Theme.of(context)
-                                          .dividerColor
-                                          .withOpacity(0.5)),
-                            ),
-                            child: Row(children: [
-                              Text('${e.key + 1}',
-                                  style: const TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w800,
-                                      color: Colors.grey)),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                  child: Text(e.value,
-                                      style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: _direction == e.value
-                                              ? AppColors.accent
-                                              : null))),
-                              if (_direction == e.value)
-                                const Icon(Icons.check_circle_rounded,
-                                    color: AppColors.accent, size: 16),
-                            ]),
-                          ),
-                        )),
+                                          .withOpacity(0.1)
+                                      : Theme.of(context).cardColor,
+                                  borderRadius:
+                                      BorderRadius.circular(11),
+                                  border: Border.all(
+                                      color: _direction == e.value
+                                          ? AppColors.accent
+                                          : Theme.of(context)
+                                              .dividerColor
+                                              .withOpacity(0.5)),
+                                ),
+                                child: Row(children: [
+                                  Text('${e.key + 1}',
+                                      style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w800,
+                                          color: Colors.grey)),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                      child: Text(e.value,
+                                          style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight:
+                                                  FontWeight.w600,
+                                              color: _direction ==
+                                                      e.value
+                                                  ? AppColors.accent
+                                                  : null))),
+                                  if (_direction == e.value)
+                                    const Icon(
+                                        Icons.check_circle_rounded,
+                                        color: AppColors.accent,
+                                        size: 16),
+                                ]),
+                              ),
+                            )),
                     const SizedBox(height: 8),
                   ],
                 ],
@@ -1190,11 +1393,12 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
 class _DegreeBtn extends StatelessWidget {
   final String label, value, group;
   final VoidCallback onTap;
-  const _DegreeBtn(
-      {required this.label,
-      required this.value,
-      required this.group,
-      required this.onTap});
+  const _DegreeBtn({
+    required this.label,
+    required this.value,
+    required this.group,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {

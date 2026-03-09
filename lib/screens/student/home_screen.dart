@@ -6,15 +6,21 @@ import '../../constants.dart';
 import '../../l10n.dart';
 import 'notifications_screen.dart';
 
-// Indekslar: 0=Home 1=Books 2=Rooms 3=MyBooks 4=News 5=Settings
+// Indekslar: 0=Home 1=Books 2=Rooms 3=MyBooks 4=Settings
 const int _kBooksIndex = 1;
-const int _kNewsIndex  = 4;
 const int _kRoomsIndex = 2;
 const int _kMineIndex  = 3;
 
 class StudentHomeScreen extends StatelessWidget {
   final void Function(int)? onNavigate;
-  const StudentHomeScreen({super.key, this.onNavigate});
+  final VoidCallback? onOpenAnnouncements;
+  final int announcementBadgeCount;
+  const StudentHomeScreen({
+    super.key,
+    this.onNavigate,
+    this.onOpenAnnouncements,
+    this.announcementBadgeCount = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -25,12 +31,44 @@ class StudentHomeScreen extends StatelessWidget {
     final recentAnn  = app.announcements.take(3).toList();
     final recentBooks = app.books.take(10).toList();
 
-    final notifCount = app.computeNotifications().length;
+    final notifCount = app.unreadCount + app.computeNotifications().length;
 
     return Scaffold(
       appBar: AppBar(
         title: Text(s.appTitle),
         actions: [
+          // ── Announcements icon with badge ──────────────────────────
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.campaign_outlined),
+                onPressed: onOpenAnnouncements,
+              ),
+              if (announcementBadgeCount > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    width: 16,
+                    height: 16,
+                    decoration: const BoxDecoration(
+                      color: AppColors.orange,
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      announcementBadgeCount > 9 ? '9+' : '$announcementBadgeCount',
+                      style: const TextStyle(
+                        fontSize: 9,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          // ── Notifications icon with badge ──────────────────────────
           Stack(
             children: [
               IconButton(
@@ -126,7 +164,7 @@ class StudentHomeScreen extends StatelessWidget {
                   icon: Icons.campaign_rounded,
                   label: s.navNews,
                   color: AppColors.orange,
-                  onTap: () => onNavigate?.call(_kNewsIndex),
+                  onTap: () => onOpenAnnouncements?.call(),
                 ),
               ],
             ),
@@ -262,7 +300,7 @@ class StudentHomeScreen extends StatelessWidget {
             _SectionHeader(
               label: s.recentAnnouncements,
               icon: Icons.campaign_outlined,
-              onTap: () => onNavigate?.call(_kNewsIndex),
+              onTap: onOpenAnnouncements,
             ),
             if (recentAnn.isEmpty)
               Text(s.noAnnouncements, style: const TextStyle(color: Colors.grey))
@@ -270,7 +308,7 @@ class StudentHomeScreen extends StatelessWidget {
               ...recentAnn.map((a) => Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: InkWell(
-                  onTap: () => onNavigate?.call(_kNewsIndex),
+                  onTap: onOpenAnnouncements,
                   borderRadius: BorderRadius.circular(14),
                   child: AppCard(
                     borderColor: a.important ? AppColors.accent.withOpacity(0.5) : null,

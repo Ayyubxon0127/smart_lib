@@ -7,7 +7,9 @@ import '../../constants.dart';
 import '../../l10n.dart';
 
 class MyBooksScreen extends StatefulWidget {
-  const MyBooksScreen({super.key});
+  /// Optional: open directly on a specific tab. 0=Active, 1=Returned, 2=Overdue
+  final int? initialTab;
+  const MyBooksScreen({super.key, this.initialTab});
 
   @override
   State<MyBooksScreen> createState() => _MyBooksScreenState();
@@ -20,7 +22,11 @@ class _MyBooksScreenState extends State<MyBooksScreen>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 3, vsync: this);
+    _tabs = TabController(
+      length: 3,
+      vsync: this,
+      initialIndex: (widget.initialTab ?? 0).clamp(0, 2),
+    );
   }
 
   @override
@@ -144,7 +150,10 @@ class _TabLabel extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(label),
+        Flexible(
+          child: Text(label,
+              maxLines: 1, overflow: TextOverflow.ellipsis),
+        ),
         if (count > 0) ...[
           const SizedBox(width: 5),
           Container(
@@ -360,11 +369,15 @@ class _ActiveReservationCardState extends State<_ActiveReservationCard> {
                           Icon(Icons.calendar_today_outlined,
                               size: 12, color: Colors.grey.shade500),
                           const SizedBox(width: 4),
-                          Text(
-                            '${res.reserveDate.day}.${res.reserveDate.month}.${res.reserveDate.year}',
-                            style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey.shade500),
+                          Flexible(
+                            child: Text(
+                              '${res.reserveDate.day}.${res.reserveDate.month}.${res.reserveDate.year}',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey.shade500),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                           const SizedBox(width: 12),
                           Icon(
@@ -375,16 +388,20 @@ class _ActiveReservationCardState extends State<_ActiveReservationCard> {
                                 : Colors.grey.shade500,
                           ),
                           const SizedBox(width: 4),
-                          Text(
-                            isOverdue
-                                ? s.daysOverdue(res.daysLeft.abs())
-                                : s.daysLeft(res.daysLeft),
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: isOverdue
-                                  ? AppColors.red
-                                  : Colors.grey.shade500,
-                              fontWeight: FontWeight.w600,
+                          Flexible(
+                            child: Text(
+                              isOverdue
+                                  ? s.daysOverdue(res.daysLeft.abs())
+                                  : s.daysLeft(res.daysLeft),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isOverdue
+                                    ? AppColors.red
+                                    : Colors.grey.shade500,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],

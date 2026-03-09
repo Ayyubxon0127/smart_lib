@@ -107,6 +107,7 @@ class _BookRoomTabState extends State<_BookRoomTab> {
   bool _loading = false;
   LibraryClosedDayModel? _closedDay;
   Timer? _timer;
+  int _duration = 1; // hours
 
   static bool _sameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
@@ -156,19 +157,28 @@ class _BookRoomTabState extends State<_BookRoomTab> {
     final isToday   = _isToday(_selectedDate);
     final slots     = <_Slot>[];
 
+    // Helper: does booking b cover hour h?
+    bool _coversHour(SeatBookingModel b, int h) {
+      final bStart = _parseHour(b.startTime);
+      final bEnd   = _parseHour(b.endTime);
+      return bStart <= h && bEnd > h;
+    }
+
+    // For booking eligibility: does selecting [h, h+dur) fit within room hours?
+    // and are there any hour in [h, h+dur) that are past/started/full?
+    // We handle that by marking each individual hour slot.
+
     for (int h = startHour; h < endHour; h++) {
       final slotStart = DateTime(
           _selectedDate.year, _selectedDate.month, _selectedDate.day, h);
       final slotEnd = DateTime(
           _selectedDate.year, _selectedDate.month, _selectedDate.day, h + 1);
-      final startStr = '${h.toString().padLeft(2, '0')}:00';
 
-      // Count all occupied seats for this slot
-      final slotOccupied = occupied.where((b) => b.startTime == startStr).length;
+      // Count all occupied seats that cover this hour
+      final slotOccupied = occupied.where((b) => _coversHour(b, h)).length;
 
       // ── Time validation (only applies to today) ──
       if (isToday && !now.isBefore(slotStart)) {
-        // currentTime >= slotStartTime → disabled
         final status = now.isBefore(slotEnd)
             ? _Status.started
             : _Status.finished;
@@ -178,14 +188,14 @@ class _BookRoomTabState extends State<_BookRoomTab> {
         continue;
       }
 
-      // ── Check if this user already booked this slot ──
+      // ── Check if this user's booking covers this hour ──
       final myBooking = myBookings.where((b) =>
           b.roomId == room.id &&
-          b.startTime == startStr &&
           _sameDay(b.date, _selectedDate) &&
           (b.status == 'active' ||
               b.status == 'arrived' ||
-              b.status == 'confirmed')).firstOrNull;
+              b.status == 'confirmed') &&
+          _coversHour(b, h)).firstOrNull;
 
       if (myBooking != null) {
         slots.add(_Slot(
@@ -258,9 +268,7 @@ class _BookRoomTabState extends State<_BookRoomTab> {
           _selectedDate.year, _selectedDate.month, _selectedDate.day,
           slot.startHour);
       if (!DateTime.now().isBefore(slotStart)) {
-        _showSnack(
-          _isToday(_selectedDate) ? S.of(context).slotStarted : S.of(context).slotExpired,
-          AppColors.red);
+        _showSnack(S.of(context).slotStarted, AppColors.red);
         await _loadSlots();
         return;
       }
@@ -268,8 +276,40 @@ class _BookRoomTabState extends State<_BookRoomTab> {
 
     final app  = context.read<AppProvider>();
     final room = app.rooms.firstWhere((r) => r.id == _selectedRoomId!);
-    final err  = await app.bookSeat(
-        room.id, room.name, _selectedDate, slot.startStr, slot.endStr);
+    final endHour = slot.startHour + _duration;
+    final endStr  = '${endHour.toString().padLeft(2, '0')}:00';
+
+    // UI-level: block if user already has any overlapping booking on any room
+    final newStartMin = slot.startHour * 60;
+    final newEndMin   = endHour * 60;
+    final hasConflict = app.seatBookings.any((b) {
+      if (b.status != 'active' && b.status != 'arrived' && b.status != 'confirmed') return false;
+      if (!_sameDay(b.date, _selectedDate)) return false;
+      final bStart = _parseHour(b.startTime) * 60;
+      final bEnd   = _parseHour(b.endTime)   * 60;
+      return newStartMin < bEnd && newEndMin > bStart;
+    });
+    if (hasConflict) {
+      _showSnack('Bu vaqt oralig\'ida sizda allaqachon bron mavjud.', AppColors.red);
+      return;
+    }
+
+    // Check multi-hour booking doesn't exceed room close time
+    final roomCloseHour = _parseHour(room.closeTime);
+    if (endHour > roomCloseHour) {
+      _showSnack(
+        S.of(context).lang == 'uz'
+            ? 'Tanlangan davomiylik xona yopilish vaqtidan oshib ketadi'
+            : S.of(context).lang == 'en'
+                ? 'Selected duration exceeds room closing time'
+                : 'Выбранная длительность превышает время закрытия',
+        AppColors.red,
+      );
+      return;
+    }
+
+    final err = await app.bookSeat(
+        room.id, room.name, _selectedDate, slot.startStr, endStr);
     if (!mounted) return;
     if (err != null) {
       _showSnack(err, AppColors.red);
@@ -341,6 +381,13 @@ class _BookRoomTabState extends State<_BookRoomTab> {
               const SizedBox(height: 12),
             ],
 
+            // ── Duration selector ──────────────────────────────────────
+            _DurationSelector(
+              selected: _duration,
+              onChanged: (d) => setState(() => _duration = d),
+            ),
+            const SizedBox(height: 12),
+
             // ── Slots ─────────────────────────────────────────────────
             if (_closedDay != null)
               _ClosedDayBanner(reason: _closedDay!.reason)
@@ -359,6 +406,7 @@ class _BookRoomTabState extends State<_BookRoomTab> {
             else
               ..._slots.map((slot) => _SlotCard(
                     slot: slot,
+                    duration: _duration,
                     onBook: () => _book(slot),
                     onCancel: () => _cancel(slot),
                   )),
@@ -613,6 +661,70 @@ class _RoomIcon extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Duration selector
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _DurationSelector extends StatelessWidget {
+  final int selected;
+  final ValueChanged<int> onChanged;
+  const _DurationSelector({required this.selected, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    return AppCard(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Row(
+        children: [
+          Icon(Icons.timer_outlined, size: 15, color: AppColors.accent),
+          const SizedBox(width: 8),
+          Text(s.bookingDuration,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Row(
+              children: [1, 2, 3].map((h) {
+                final active = h == selected;
+                return Expanded(
+                  child: GestureDetector(
+                    onTap: () => onChanged(h),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      padding: const EdgeInsets.symmetric(vertical: 7),
+                      decoration: BoxDecoration(
+                        color: active
+                            ? AppColors.accent
+                            : Theme.of(context).scaffoldBackgroundColor,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: active
+                              ? AppColors.accent
+                              : Theme.of(context).dividerColor,
+                        ),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        s.hour(h),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: active ? Colors.black : null,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Slot card
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -620,11 +732,13 @@ class _SlotCard extends StatefulWidget {
   final _Slot slot;
   final Future<void> Function() onBook;
   final Future<void> Function() onCancel;
+  final int duration;
 
   const _SlotCard({
     required this.slot,
     required this.onBook,
     required this.onCancel,
+    this.duration = 1,
   });
 
   @override
@@ -681,7 +795,14 @@ class _SlotCardState extends State<_SlotCard> {
                   Icon(Icons.access_time_rounded, size: 15, color: color),
                   const SizedBox(width: 6),
                   Text(
-                    slot.label,
+                    slot.status == _Status.bookedByUser
+                        ? slot.label
+                        : () {
+                            final endH = slot.startHour + widget.duration;
+                            final endStr =
+                                '${endH.toString().padLeft(2, '0')}:00';
+                            return '${slot.startStr} – $endStr';
+                          }(),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
@@ -1035,7 +1156,18 @@ class _BookingCard extends StatefulWidget {
 }
 
 class _BookingCardState extends State<_BookingCard> {
-  bool _cancelling = false;
+  bool _cancelling  = false;
+  bool _confirming  = false;
+
+  bool _inArrivalWindow(SeatBookingModel b) {
+    final parts    = b.startTime.split(':');
+    final startDT  = DateTime(b.date.year, b.date.month, b.date.day,
+        int.parse(parts[0]), int.parse(parts[1]));
+    final now      = DateTime.now();
+    final windowStart = startDT.subtract(const Duration(minutes: 30));
+    final windowEnd   = startDT.add(const Duration(minutes: 30));
+    return now.isAfter(windowStart) && now.isBefore(windowEnd);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1045,7 +1177,7 @@ class _BookingCardState extends State<_BookingCard> {
 
     final (statusColor, statusLabel) = switch (b.status) {
       'active'    => (AppColors.blue,       'Aktiv'),
-      'arrived'   => (AppColors.green,      'Keldi'),
+      'arrived'   => (AppColors.orange,     s.lang == 'uz' ? 'Tasdiq kutilmoqda' : s.lang == 'en' ? 'Awaiting confirmation' : 'Ожидает подтверждения'),
       'confirmed' => (AppColors.green,      s.statusConfirmed),
       'left'      => (Colors.grey.shade500, s.statusLeft),
       'cancelled' => (Colors.grey,          s.bookingCancelled),
@@ -1053,7 +1185,8 @@ class _BookingCardState extends State<_BookingCard> {
       _           => (Colors.grey,          b.status),
     };
 
-    final canCancel = b.status == 'active' && !widget.isPast;
+    final canCancel       = b.status == 'active' && !widget.isPast;
+    final canConfirmArr   = b.status == 'active' && !widget.isPast && _inArrivalWindow(b);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -1116,8 +1249,47 @@ class _BookingCardState extends State<_BookingCard> {
                 StatusBadge(label: statusLabel, color: statusColor),
               ],
             ),
-            if (canCancel) ...[
+            // ── Arrival confirmation button ───────────────────────
+            if (canConfirmArr) ...[
               const SizedBox(height: 10),
+              ElevatedButton.icon(
+                onPressed: _confirming
+                    ? null
+                    : () async {
+                        setState(() => _confirming = true);
+                        await app.studentArrivedAtSeat(b.id);
+                        if (mounted) {
+                          setState(() => _confirming = false);
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text(s.arrivalSent),
+                            backgroundColor: AppColors.green,
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ));
+                        }
+                      },
+                icon: _confirming
+                    ? const SizedBox(
+                        width: 14, height: 14,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.how_to_reg_outlined, size: 16),
+                label: Text(s.confirmArrivalBtn,
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w700)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.green,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(double.infinity, 38),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ],
+            // ── Cancel button ─────────────────────────────────────
+            if (canCancel) ...[
+              const SizedBox(height: 8),
               OutlinedButton.icon(
                 onPressed: _cancelling
                     ? null

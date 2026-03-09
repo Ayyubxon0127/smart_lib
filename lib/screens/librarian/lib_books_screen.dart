@@ -135,10 +135,12 @@ class _BookTile extends StatelessWidget {
         (r.status == 'active' || r.status == 'pending_confirm' || r.status == 'return_requested')
     ).toList();
 
+    final availColor = book.available > 0 ? AppColors.green : AppColors.red;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: AppCard(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => BookDetailPage(book: book)),
@@ -149,29 +151,61 @@ class _BookTile extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                BookCover(imageUrl: book.imageUrl, emoji: book.coverEmoji, width: 44, height: 58),
+                // Cover — slightly larger for visual balance
+                BookCover(imageUrl: book.imageUrl, emoji: book.coverEmoji, width: 58, height: 76),
                 const SizedBox(width: 12),
+                // Info column
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(book.title,
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-                          maxLines: 2),
+                      // Title row + compact action buttons at top-right
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              book.title,
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, height: 1.3),
+                              maxLines: 2,
+                            ),
+                          ),
+                          const SizedBox(width: 2),
+                          _TileActions(
+                            onQuestions: () => showModalBottomSheet(
+                              context: context, isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) => _BookQuestionsSheet(book: book),
+                            ),
+                            onEdit: () => showModalBottomSheet(
+                              context: context, isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) => _BookFormSheet(book: book),
+                            ),
+                            onDelete: () => _confirmDelete(context, app, book),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 3),
-                      Text(book.author,
-                          style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
-                      const SizedBox(height: 5),
+                      // Author
+                      Text(
+                        book.author,
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 7),
+                      // Rating + Views
                       if (book.rating > 0 || book.views > 0)
                         Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
+                          padding: const EdgeInsets.only(bottom: 6),
                           child: Row(children: [
                             if (book.rating > 0) ...[
                               const Icon(Icons.star_rounded, size: 13, color: Colors.amber),
                               const SizedBox(width: 3),
                               Text(book.rating.toStringAsFixed(1),
                                   style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 10),
                             ],
                             if (book.views > 0) ...[
                               Icon(Icons.visibility_outlined, size: 13, color: Colors.grey.shade500),
@@ -181,49 +215,22 @@ class _BookTile extends StatelessWidget {
                             ],
                           ]),
                         ),
-                      Row(children: [
-                        StatusBadge(
-                          label: '${book.available}/${book.total}',
-                          color: book.available > 0 ? AppColors.green : Colors.grey,
-                        ),
-                        const SizedBox(width: 6),
-                        StatusBadge(label: book.category, color: AppColors.blue),
-                      ]),
+                      // Availability + Category chips
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: [
+                          _AvailChip(available: book.available, total: book.total, color: availColor),
+                          _CatChip(label: book.category),
+                        ],
+                      ),
                     ],
                   ),
-                ),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.help_outline, size: 18, color: AppColors.blue),
-                      tooltip: s.questions,
-                      onPressed: () => showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (_) => _BookQuestionsSheet(book: book),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.edit_outlined, size: 18),
-                      onPressed: () => showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (_) => _BookFormSheet(book: book),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.red),
-                      onPressed: () => _confirmDelete(context, app, book),
-                    ),
-                  ],
                 ),
               ],
             ),
             if (borrowers.isNotEmpty) ...[
-              const Divider(height: 14),
+              const Divider(height: 16),
               Text(s.borrowedBy,
                   style: TextStyle(fontSize: 11, color: Colors.grey.shade500, fontWeight: FontWeight.w600)),
               const SizedBox(height: 6),
@@ -295,6 +302,100 @@ class _BookTile extends StatelessWidget {
             child: Text(s.delete, style: const TextStyle(color: AppColors.red)),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── Tile helper widgets ───────────────────────────────────────────────────────
+
+/// Compact row of action icons shown at the top-right of each book tile.
+class _TileActions extends StatelessWidget {
+  final VoidCallback onQuestions;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+  const _TileActions({required this.onQuestions, required this.onEdit, required this.onDelete});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _TileBtn(icon: Icons.help_outline,    color: AppColors.blue, onTap: onQuestions),
+        _TileBtn(icon: Icons.edit_outlined,   color: Colors.grey,    onTap: onEdit),
+        _TileBtn(icon: Icons.delete_outline,  color: AppColors.red,  onTap: onDelete),
+      ],
+    );
+  }
+}
+
+class _TileBtn extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+  const _TileBtn({required this.icon, required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.all(6),
+        child: Icon(icon, size: 17, color: color),
+      ),
+    );
+  }
+}
+
+/// Availability badge: "1/2" with a book icon, colored green or red.
+class _AvailChip extends StatelessWidget {
+  final int available;
+  final int total;
+  final Color color;
+  const _AvailChip({required this.available, required this.total, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.35)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.library_books_outlined, size: 11, color: color),
+          const SizedBox(width: 4),
+          Text(
+            '$available/$total',
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Small category chip styled with blue accent.
+class _CatChip extends StatelessWidget {
+  final String label;
+  const _CatChip({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: AppColors.blue.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.blue.withOpacity(0.3)),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.blue),
       ),
     );
   }

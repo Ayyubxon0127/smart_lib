@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tz_data;
@@ -9,6 +12,10 @@ import '../models/room_model.dart';
 class NotificationService {
   static final _plugin = FlutterLocalNotificationsPlugin();
   static bool _initialized = false;
+
+  /// Called by FcmService to wire local-notification tap → navigation.
+  static void Function(String? screen, String? id)? _onTap;
+  static void setOnTap(void Function(String? screen, String? id) fn) => _onTap = fn;
 
   static Future<void> init() async {
     if (_initialized) return;
@@ -25,6 +32,7 @@ class NotificationService {
 
     await _plugin.initialize(
       const InitializationSettings(android: android, iOS: ios),
+      onDidReceiveNotificationResponse: _onLocalNotifTap,
     );
 
     await _plugin
@@ -32,7 +40,75 @@ class NotificationService {
             AndroidFlutterLocalNotificationsPlugin>()
         ?.requestNotificationsPermission();
 
+    // Create the high-priority FCM channel on Android
+    await _plugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(const AndroidNotificationChannel(
+          'fcm_high',
+          'Smart Kutubxona',
+          description: 'Kutubxona push-bildirisnomalar',
+          importance: Importance.max,
+          playSound: true,
+          enableVibration: true,
+        ));
+
     _initialized = true;
+  }
+
+  // ── Local-notification tap handler ───────────────────────────────────────────
+
+  static void _onLocalNotifTap(NotificationResponse response) {
+    final payload = response.payload;
+    if (payload == null || payload.isEmpty) return;
+    try {
+      final data = jsonDecode(payload) as Map<String, dynamic>;
+      _onTap?.call(
+        data['targetScreen'] as String?,
+        data['targetId'] as String?,
+      );
+    } catch (_) {}
+  }
+
+  // ── FCM foreground notification ───────────────────────────────────────────────
+
+  static const _fcmDetails = NotificationDetails(
+    android: AndroidNotificationDetails(
+      'fcm_high',
+      'Smart Kutubxona',
+      channelDescription: 'Kutubxona push-bildirisnomalar',
+      importance: Importance.max,
+      priority: Priority.high,
+      playSound: true,
+      enableVibration: true,
+      icon: '@mipmap/ic_launcher',
+    ),
+    iOS: DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    ),
+  );
+
+  /// Shows a local notification for an incoming FCM [message].
+  /// Call this from the foreground listener and from the background handler.
+  static Future<void> showFcmNotification(RemoteMessage message) async {
+    if (!_initialized) await init();
+
+    final title = message.notification?.title ?? message.data['title'] as String? ?? '';
+    final body  = message.notification?.body  ?? message.data['message'] as String? ?? '';
+    if (title.isEmpty && body.isEmpty) return;
+
+    // Encode navigation payload so the tap handler can route correctly
+    final payload = jsonEncode({
+      'targetScreen': message.data['targetScreen'],
+      'targetId':     message.data['targetId'],
+    });
+
+    // Use a hash of the notification ID to avoid int overflow
+    final notifId = message.messageId?.hashCode.abs() ?? DateTime.now().millisecondsSinceEpoch % 100000;
+
+    await _plugin.show(notifId, title, body, _fcmDetails, payload: payload);
   }
 
   static const _bookDetails = NotificationDetails(

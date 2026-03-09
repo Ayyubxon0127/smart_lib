@@ -790,7 +790,9 @@ class _SkeletonBox extends StatelessWidget {
 
 class BookDetailPage extends StatefulWidget {
   final BookModel book;
-  const BookDetailPage({super.key, required this.book});
+  /// Optional: open directly on a specific tab. 0=Info, 1=Reviews, 2=Questions
+  final int? initialTab;
+  const BookDetailPage({super.key, required this.book, this.initialTab});
 
   @override
   State<BookDetailPage> createState() => _BookDetailPageState();
@@ -804,7 +806,11 @@ class _BookDetailPageState extends State<BookDetailPage>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 3, vsync: this);
+    _tabs = TabController(
+      length: 3,
+      vsync: this,
+      initialIndex: (widget.initialTab ?? 0).clamp(0, 2),
+    );
     _book = widget.book;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final app = context.read<AppProvider>();
@@ -1243,59 +1249,23 @@ class _ReviewCard extends StatefulWidget {
 
 class _ReviewCardState extends State<_ReviewCard> {
   Future<void> _showEditSheet() async {
-    final ctrl = TextEditingController(text: widget.review.comment);
-    final s = S.of(context);
+    final s = S.read(context);
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewInsets.bottom,
-            left: 16,
-            right: 16,
-            top: 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(s.editComment,
-                style: const TextStyle(
-                    fontWeight: FontWeight.w700, fontSize: 16)),
-            const SizedBox(height: 12),
-            TextField(
-              controller: ctrl,
-              maxLines: 4,
-              autofocus: true,
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: Theme.of(ctx).scaffoldBackgroundColor,
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide.none),
-                contentPadding: const EdgeInsets.all(12),
-              ),
-            ),
-            const SizedBox(height: 12),
-            AccentButton(
-              label: s.save,
-              icon: Icons.check,
-              onTap: () async {
-                final text = ctrl.text.trim();
-                if (text.isEmpty) return;
-                final app = context.read<AppProvider>();
-                await app.updateReview(widget.bookId, widget.review.id, text);
-                Navigator.pop(ctx);
-                if (mounted) widget.onChanged();
-              },
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
+      builder: (_) => _EditTextSheet(
+        initialText: widget.review.comment,
+        title: s.editComment,
+        maxLines: 4,
+        onSave: (text) async {
+          await context.read<AppProvider>()
+              .updateReview(widget.bookId, widget.review.id, text);
+          if (mounted) widget.onChanged();
+        },
       ),
     );
-    ctrl.dispose();
   }
 
   Future<void> _confirmDelete() async {
@@ -1541,56 +1511,23 @@ class _QuestionCardState extends State<_QuestionCard> {
   // ── Edit question ──────────────────────────────────────────────────────────
 
   Future<void> _editQuestion() async {
-    final ctrl = TextEditingController(text: widget.question.question);
     final s = S.read(context);
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewInsets.bottom,
-            left: 16, right: 16, top: 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(s.editQuestion,
-                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-            const SizedBox(height: 12),
-            TextField(
-              controller: ctrl,
-              maxLines: 3,
-              autofocus: true,
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: Theme.of(ctx).scaffoldBackgroundColor,
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide.none),
-                contentPadding: const EdgeInsets.all(12),
-              ),
-            ),
-            const SizedBox(height: 12),
-            AccentButton(
-              label: s.save,
-              icon: Icons.check,
-              onTap: () async {
-                final text = ctrl.text.trim();
-                if (text.isEmpty) return;
-                final app = context.read<AppProvider>();
-                await app.updateQuestion(widget.bookId, widget.question.id, text);
-                Navigator.pop(ctx);
-                if (mounted) widget.onAnswered();
-              },
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
+      builder: (_) => _EditTextSheet(
+        initialText: widget.question.question,
+        title: s.editQuestion,
+        maxLines: 3,
+        onSave: (text) async {
+          await context.read<AppProvider>()
+              .updateQuestion(widget.bookId, widget.question.id, text);
+          if (mounted) widget.onAnswered();
+        },
       ),
     );
-    ctrl.dispose();
   }
 
   // ── Delete question ────────────────────────────────────────────────────────
@@ -1623,56 +1560,23 @@ class _QuestionCardState extends State<_QuestionCard> {
   // ── Edit answer ────────────────────────────────────────────────────────────
 
   Future<void> _editAnswer() async {
-    final ctrl = TextEditingController(text: widget.question.answer ?? '');
     final s = S.read(context);
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewInsets.bottom,
-            left: 16, right: 16, top: 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(s.editAnswer,
-                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-            const SizedBox(height: 12),
-            TextField(
-              controller: ctrl,
-              maxLines: 4,
-              autofocus: true,
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: Theme.of(ctx).scaffoldBackgroundColor,
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide.none),
-                contentPadding: const EdgeInsets.all(12),
-              ),
-            ),
-            const SizedBox(height: 12),
-            AccentButton(
-              label: s.save,
-              icon: Icons.check,
-              onTap: () async {
-                final text = ctrl.text.trim();
-                if (text.isEmpty) return;
-                final app = context.read<AppProvider>();
-                await app.updateAnswer(widget.bookId, widget.question.id, text);
-                Navigator.pop(ctx);
-                if (mounted) widget.onAnswered();
-              },
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
+      builder: (_) => _EditTextSheet(
+        initialText: widget.question.answer ?? '',
+        title: s.editAnswer,
+        maxLines: 4,
+        onSave: (text) async {
+          await context.read<AppProvider>()
+              .updateAnswer(widget.bookId, widget.question.id, text);
+          if (mounted) widget.onAnswered();
+        },
       ),
     );
-    ctrl.dispose();
   }
 
   // ── Delete answer ──────────────────────────────────────────────────────────
@@ -1931,6 +1835,93 @@ class _QuestionCardState extends State<_QuestionCard> {
     return '${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')}.${dt.year}';
   }
 }
+
+// ── Reusable edit bottom-sheet ────────────────────────────────────────────────
+// Uses StatefulWidget so the controller is tied to widget lifecycle and
+// disposed only after the closing animation fully unmounts the widget.
+
+class _EditTextSheet extends StatefulWidget {
+  final String initialText;
+  final String title;
+  final int maxLines;
+  final Future<void> Function(String text) onSave;
+
+  const _EditTextSheet({
+    required this.initialText,
+    required this.title,
+    required this.maxLines,
+    required this.onSave,
+  });
+
+  @override
+  State<_EditTextSheet> createState() => _EditTextSheetState();
+}
+
+class _EditTextSheetState extends State<_EditTextSheet> {
+  late final TextEditingController _ctrl;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = TextEditingController(text: widget.initialText);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+        left: 16, right: 16, top: 20,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(widget.title,
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _ctrl,
+            maxLines: widget.maxLines,
+            autofocus: true,
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: Theme.of(context).scaffoldBackgroundColor,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: const EdgeInsets.all(12),
+            ),
+          ),
+          const SizedBox(height: 12),
+          AccentButton(
+            label: S.read(context).save,
+            icon: Icons.check,
+            loading: _saving,
+            onTap: () async {
+              final text = _ctrl.text.trim();
+              if (text.isEmpty || _saving) return;
+              setState(() => _saving = true);
+              await widget.onSave(text);
+              if (mounted) Navigator.pop(context);
+            },
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _InfoBanner extends StatelessWidget {
   final String text;

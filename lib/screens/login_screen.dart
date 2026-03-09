@@ -14,61 +14,114 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _emailCtrl    = TextEditingController();
-  final _passCtrl     = TextEditingController();
-  bool _obscure       = true;
-  String? _errorMsg;
+  final _emailCtrl  = TextEditingController();
+  final _passCtrl   = TextEditingController();
+  final _emailFocus = FocusNode();
+  final _passFocus  = FocusNode();
+  bool _obscure     = true;
+  bool _emailError  = false;
+  bool _passError   = false;
 
   @override
   void dispose() {
     _emailCtrl.dispose();
     _passCtrl.dispose();
+    _emailFocus.dispose();
+    _passFocus.dispose();
     super.dispose();
   }
 
+  void _showSnackBar(String msg) {
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.white, size: 18),
+            const SizedBox(width: 10),
+            Expanded(child: Text(msg, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
+          ],
+        ),
+        backgroundColor: AppColors.red,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
   Future<void> _login() async {
-    setState(() => _errorMsg = null);
-    final s = S.read(context);
+    setState(() {
+      _emailError = false;
+      _passError  = false;
+    });
+
+    final s     = S.read(context);
     final email = _emailCtrl.text.trim();
-    final pass  = _passCtrl.text; // parolni trim qilmaymiz
+    final pass  = _passCtrl.text;
 
     if (email.isEmpty) {
-      setState(() => _errorMsg = s.emptyEmail);
+      setState(() => _emailError = true);
+      _emailFocus.requestFocus();
+      _showSnackBar(s.emptyEmail);
       return;
     }
     if (!email.contains('@') || !email.contains('.')) {
-      setState(() => _errorMsg = s.invalidEmail);
+      setState(() => _emailError = true);
+      _emailFocus.requestFocus();
+      _showSnackBar(s.invalidEmail);
       return;
     }
     if (pass.isEmpty) {
-      setState(() => _errorMsg = s.emptyPassword);
+      setState(() => _passError = true);
+      _passFocus.requestFocus();
+      _showSnackBar(s.emptyPassword);
       return;
     }
     if (pass.length < 6) {
-      setState(() => _errorMsg = s.passwordTooShort);
+      setState(() => _passError = true);
+      _passFocus.requestFocus();
+      _showSnackBar(s.passwordTooShort);
       return;
     }
 
     final app = context.read<AppProvider>();
-    final ok = await app.login(email, pass);
+    final ok  = await app.login(email, pass);
     if (!ok && mounted) {
-      setState(() => _errorMsg = _friendlyError(app.error ?? '', s));
+      final err = app.error ?? '';
+      _showSnackBar(_friendlyError(err, s));
+      // email is preserved; clear password and highlight the relevant field
+      if (err == 'invalid-email') {
+        setState(() => _emailError = true);
+        _emailFocus.requestFocus();
+      } else {
+        _passCtrl.clear();
+        setState(() => _passError = true);
+        _passFocus.requestFocus();
+      }
     }
   }
 
   String _friendlyError(String error, S s) {
-    final e = error.toLowerCase();
-    if (e.contains('invalid-credential') ||
-        e.contains('wrong-password') ||
-        e.contains('user-not-found') ||
-        e.contains('invalid-email') && e.contains('password')) {
-      return s.wrongCredentials;
+    switch (error) {
+      case 'user-not-found':
+        return s.userNotFound;
+      case 'wrong-password':
+        return s.wrongPassword;
+      case 'invalid-email':
+        return s.invalidEmail;
+      case 'user-disabled':
+        return s.userDisabled;
+      case 'too-many-requests':
+        return s.tooManyRequests;
+      case 'network-request-failed':
+        return s.networkError;
+      case 'invalid-credential':
+      case 'INVALID_LOGIN_CREDENTIALS':
+      default:
+        return s.wrongCredentials;
     }
-    if (e.contains('invalid-email')) return s.invalidEmail;
-    if (e.contains('too-many-requests')) return s.tooManyRequests;
-    if (e.contains('user-disabled')) return s.userDisabled;
-    if (e.contains('network-request-failed') || e.contains('network')) return s.networkError;
-    return s.wrongCredentials; // noma'lum xatoliklar uchun ham qulay xabar
   }
 
   @override
@@ -121,14 +174,25 @@ class _LoginScreenState extends State<LoginScreen> {
                     AppTextField(
                       hint: 'Email',
                       controller: _emailCtrl,
+                      focusNode: _emailFocus,
                       keyboardType: TextInputType.emailAddress,
+                      enableInteractiveSelection: true,
+                      hasError: _emailError,
+                      onChanged: (_) {
+                        if (_emailError) setState(() => _emailError = false);
+                      },
                       prefix: const Icon(Icons.email_outlined, size: 18),
                     ),
                     const SizedBox(height: 12),
                     AppTextField(
                       hint: s.password,
                       controller: _passCtrl,
+                      focusNode: _passFocus,
                       obscure: _obscure,
+                      hasError: _passError,
+                      onChanged: (_) {
+                        if (_passError) setState(() => _passError = false);
+                      },
                       prefix: const Icon(Icons.lock_outline, size: 18),
                       suffix: IconButton(
                         icon: Icon(
@@ -140,24 +204,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 20),
-                    if (_errorMsg != null) ...[
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppColors.red.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: AppColors.red.withOpacity(0.3)),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.error_outline, color: AppColors.red, size: 16),
-                            const SizedBox(width: 8),
-                            Expanded(child: Text(_errorMsg!, style: const TextStyle(color: AppColors.red, fontSize: 12))),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
                     AccentButton(label: s.signIn, icon: Icons.login_rounded, loading: app.loading, onTap: _login),
                   ],
                 ),

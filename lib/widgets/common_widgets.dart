@@ -119,39 +119,65 @@ class AppTextField extends StatelessWidget {
   final int maxLines;
   final Widget? prefix;
   final Widget? suffix;
+  final FocusNode? focusNode;
+  final bool hasError;
+  final bool enableInteractiveSelection;
+  final ValueChanged<String>? onChanged;
 
   const AppTextField({
     super.key, required this.hint, this.controller,
     this.keyboardType, this.obscure = false, this.maxLines = 1,
-    this.prefix, this.suffix,
+    this.prefix, this.suffix, this.focusNode,
+    this.hasError = false, this.enableInteractiveSelection = true,
+    this.onChanged,
   });
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final errorColor = AppColors.red;
     return TextField(
       controller: controller,
       keyboardType: keyboardType,
       obscureText: obscure,
       maxLines: maxLines,
+      focusNode: focusNode,
+      enableInteractiveSelection: enableInteractiveSelection,
+      onChanged: onChanged,
       style: const TextStyle(fontSize: 13),
       decoration: InputDecoration(
         hintText: hint,
-        prefixIcon: prefix,
+        prefixIcon: prefix != null
+            ? IconTheme(
+                data: IconThemeData(
+                  color: hasError ? errorColor : Colors.grey,
+                  size: 18,
+                ),
+                child: prefix!,
+              )
+            : null,
         suffixIcon: suffix,
         filled: true,
-        fillColor: isDark ? const Color(0xFF0F1923) : const Color(0xFFF0F2F5),
+        fillColor: hasError
+            ? errorColor.withOpacity(0.05)
+            : (isDark ? const Color(0xFF0F1923) : const Color(0xFFF0F2F5)),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Theme.of(context).dividerColor),
+          borderSide: BorderSide(color: hasError ? errorColor : Theme.of(context).dividerColor),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.5)),
+          borderSide: BorderSide(
+            color: hasError ? errorColor.withOpacity(0.7) : Theme.of(context).dividerColor.withOpacity(0.5),
+            width: hasError ? 1.5 : 1.0,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.accent, width: 1.5),
+          borderSide: BorderSide(
+            color: hasError ? errorColor : AppColors.accent,
+            width: 1.5,
+          ),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       ),

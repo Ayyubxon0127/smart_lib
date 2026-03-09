@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/user_model.dart';
@@ -9,6 +11,8 @@ import '../models/reservation_model.dart';
 import '../models/review_model.dart';
 import '../models/room_model.dart';
 import '../models/notification_model.dart';
+import '../models/discussion_model.dart';
+import '../models/book_market_model.dart';
 import '../services/notification_service.dart';
 
 class AppProvider extends ChangeNotifier {
@@ -20,6 +24,7 @@ class AppProvider extends ChangeNotifier {
   bool                    _isDark      = true;
   bool                    _useSystemTheme = false;
   String                  _lang        = 'uz';
+  bool                    _initialized = false;
   bool                    _loading     = false;
   String?                 _error;
   List<BookModel>         _books         = [];
@@ -33,12 +38,16 @@ class AppProvider extends ChangeNotifier {
   Map<String, String>     _socialLinks    = {};
   List<Map<String, String>> _faqItems    = [];
   List<LibraryClosedDayModel> _closedDays = [];
+  List<NotificationItem>    _notifications  = [];
+  StreamSubscription<QuerySnapshot>? _notifSub;
+  List<BookMarketItem>      _marketItems    = [];
 
   UserModel?              get currentUser   => _currentUser;
   String                  get role          => _role;
   bool                    get isDark          => _isDark;
   bool                    get useSystemTheme  => _useSystemTheme;
   String                  get lang            => _lang;
+  bool                    get initialized   => _initialized;
   bool                    get loading       => _loading;
   String?                 get error         => _error;
   List<BookModel>         get books         => _books;
@@ -50,6 +59,9 @@ class AppProvider extends ChangeNotifier {
   Set<String>             get favorites     => _favorites;
   Map<String, String>     get socialLinks   => _socialLinks;
   List<Map<String, String>> get faqItems   => _faqItems;
+  List<NotificationItem>    get notifications => _notifications;
+  int                       get unreadCount   => _notifications.where((n) => !n.isRead).length;
+  List<BookMarketItem>      get marketItems   => _marketItems;
   bool isFavorite(String id) => _favorites.contains(id);
 
   List<BookModel> get favoriteBooks =>
@@ -83,8 +95,13 @@ class AppProvider extends ChangeNotifier {
   }
 
   AppProvider() {
-    _loadPrefs();
-    _restoreSession();
+    _init();
+  }
+
+  Future<void> _init() async {
+    await Future.wait([_loadPrefs(), _restoreSession()]);
+    _initialized = true;
+    notifyListeners();
   }
 
   Future<void> _loadPrefs() async {
@@ -202,6 +219,9 @@ class AppProvider extends ChangeNotifier {
 
   // Logout
   Future<void> logout() async {
+    await _notifSub?.cancel();
+    _notifSub = null;
+    _notifications = [];
     await _auth.signOut();
     _currentUser = null; _role = '';
     _books = []; _reservations = []; _announcements = []; _students = [];
@@ -221,6 +241,8 @@ class AppProvider extends ChangeNotifier {
       fetchClosedDays(),
       if (_role == 'librarian') fetchStudents(),
     ]);
+    _startNotifListener();
+    _initFcm();
     if (_role == 'student') {
       await _checkExpiredBookings();
       NotificationService.scheduleAll(
@@ -676,6 +698,14 @@ class AppProvider extends ChangeNotifier {
     await ref.set(res.toFirestore());
     _reservations.insert(0, res);
     notifyListeners();
+    // Notify librarians about new book request
+    final bookTitle = _books.firstWhere((b) => b.id == bookId, orElse: () => BookModel(id: '', title: 'Kitob', author: '', category: '', coverEmoji: '📖', description: '', available: 0, total: 0, addedDate: DateTime.now())).title;
+    unawaited(_notifyLibrarians(
+      title: 'Yangi kitob so\'rovi 📚',
+      message: '${_currentUser!.name} "$bookTitle" kitobini so\'radi',
+      type: NotifType.bookRequest,
+      targetScreen: NotifScreen.reservations,
+    ));
     return null;
   }
 
@@ -709,6 +739,33 @@ class AppProvider extends ChangeNotifier {
 
     await batch.commit();
     await Future.wait([fetchReservations(), fetchBooks()]);
+
+    // Notify student about status change
+    if (res.studentId.isNotEmpty) {
+      final bookTitle = _books.firstWhere((b) => b.id == res.bookId, orElse: () => BookModel(id: '', title: 'Kitob', author: '', category: '', coverEmoji: '📖', description: '', available: 0, total: 0, addedDate: DateTime.now())).title;
+      if (status == 'active') {
+        unawaited(_sendNotificationTo(res.studentId,
+          title: 'Kitob tasdiqlandi ✅',
+          message: '"$bookTitle" kitobingiz tasdiqlandi. Kutubxonaga kelib oling!',
+          type: NotifType.bookApproved,
+          targetScreen: NotifScreen.myBooksActive, // → active tab (0)
+        ));
+      } else if (status == 'returned') {
+        unawaited(_sendNotificationTo(res.studentId,
+          title: 'Kitob qaytarildi 📖',
+          message: '"$bookTitle" kitobingiz muvaffaqiyatli qaytarildi. Rahmat!',
+          type: NotifType.bookReturned,
+          targetScreen: NotifScreen.myBooks,
+        ));
+      } else if (status == 'return_requested') {
+        unawaited(_notifyLibrarians(
+          title: 'Kitob qaytarish so\'rovi 🔄',
+          message: '${res.studentName} "$bookTitle" kitobini qaytarishni so\'radi',
+          type: NotifType.returnRequest,
+          targetScreen: NotifScreen.reservationsReturn, // → return_requested filter
+        ));
+      }
+    }
   }
 
   Future<void> addAnnouncement(AnnouncementModel ann) async {
@@ -810,6 +867,14 @@ class AppProvider extends ChangeNotifier {
       });
     });
     await fetchBooks();
+    final bookTitle = _books.firstWhere((b) => b.id == bookId, orElse: () => BookModel(id: '', title: 'Kitob', author: '', category: '', coverEmoji: '📖', description: '', available: 0, total: 0, addedDate: DateTime.now())).title;
+    unawaited(_notifyLibrarians(
+      title: 'Yangi izoh ⭐',
+      message: '${_currentUser!.name} "$bookTitle" kitobiga $rating yulduz berdi',
+      type: NotifType.newReview,
+      targetScreen: NotifScreen.bookDetailReviews, // → Sharhlar tab (1)
+      targetId: bookId,
+    ));
   }
 
   // ── Savollar ─────────────────────────────────────────────────────────────
@@ -834,16 +899,60 @@ class AppProvider extends ChangeNotifier {
       'createdAt':     FieldValue.serverTimestamp(),
       'answeredAt':    null,
     });
+    final bookTitle = _books.firstWhere((b) => b.id == bookId, orElse: () => BookModel(id: '', title: 'Kitob', author: '', category: '', coverEmoji: '📖', description: '', available: 0, total: 0, addedDate: DateTime.now())).title;
+    unawaited(_notifyLibrarians(
+      title: 'Yangi savol ❓',
+      message: '${_currentUser!.name}: "$question" ("$bookTitle")',
+      type: NotifType.newQuestion,
+      targetScreen: NotifScreen.bookDetailQuestions, // → Savollar tab (2)
+      targetId: bookId,
+    ));
   }
 
   Future<void> answerQuestion(String bookId, String questionId, String answer) async {
+    // Get question to find student
+    final qDoc = await _db.collection('books').doc(bookId).collection('questions').doc(questionId).get();
+    final studentId = (qDoc.data() as Map<String, dynamic>?)?['studentId'] as String? ?? '';
     await _db
         .collection('books').doc(bookId)
         .collection('questions').doc(questionId)
         .update({
-      'answer':     answer,
-      'answeredBy': _currentUser!.name,
+      'answer':       answer,
+      'answeredBy':   _currentUser!.name,
+      'answeredById': _currentUser!.id,
+      'answeredAt':   FieldValue.serverTimestamp(),
+    });
+    if (studentId.isNotEmpty) {
+      final bookTitle = _books.firstWhere((b) => b.id == bookId, orElse: () => BookModel(id: '', title: 'Kitob', author: '', category: '', coverEmoji: '📖', description: '', available: 0, total: 0, addedDate: DateTime.now())).title;
+      unawaited(_sendNotificationTo(studentId,
+        title: 'Savolingizga javob berildi 💬',
+        message: '"$bookTitle": $answer',
+        type: NotifType.questionAnswered,
+        targetScreen: NotifScreen.bookDetailQuestions, // → Savollar tab (2)
+        targetId: bookId,
+      ));
+    }
+  }
+
+  Future<void> updateAnswer(String bookId, String questionId, String newAnswer) async {
+    await _db
+        .collection('books').doc(bookId)
+        .collection('questions').doc(questionId)
+        .update({
+      'answer':     newAnswer,
       'answeredAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> deleteAnswer(String bookId, String questionId) async {
+    await _db
+        .collection('books').doc(bookId)
+        .collection('questions').doc(questionId)
+        .update({
+      'answer':       FieldValue.delete(),
+      'answeredBy':   FieldValue.delete(),
+      'answeredById': FieldValue.delete(),
+      'answeredAt':   FieldValue.delete(),
     });
   }
 
@@ -936,13 +1045,27 @@ class AppProvider extends ChangeNotifier {
       return 'Xona ${room.openTime}–${room.closeTime} oralig\'ida ochiq!';
     }
 
-    // Check duplicate: student already booked this room at overlapping time (client-side)
+    // Check duplicate: user cannot have any overlapping booking across ALL rooms (client-side)
     final alreadyBooked = _seatBookings.any((b) =>
-    b.status == 'active' &&
-        b.roomId == roomId &&
+        (b.status == 'active' || b.status == 'arrived' || b.status == 'confirmed') &&
         _sameDay(b.date, date) &&
         _overlaps(startTime, endTime, b.startTime, b.endTime));
-    if (alreadyBooked) return 'Siz bu vaqtda ushbu xonaga allaqachon bron qilgansiz!';
+    if (alreadyBooked) return 'Bu vaqt oralig\'ida sizda allaqachon bron mavjud.';
+
+    // Server-side confirmation: handles stale local cache or multi-device scenarios
+    final userBookSnap = await _db
+        .collection('seat_bookings')
+        .where('studentId', isEqualTo: _currentUser!.id)
+        .get();
+    final serverConflict = userBookSnap.docs.any((doc) {
+      final d = doc.data() as Map<String, dynamic>;
+      final st = d['status'] as String? ?? '';
+      if (st != 'active' && st != 'arrived' && st != 'confirmed') return false;
+      final bookDate = (d['date'] as Timestamp).toDate();
+      return _sameDay(bookDate, date) &&
+          _overlaps(startTime, endTime, d['startTime'] as String, d['endTime'] as String);
+    });
+    if (serverConflict) return 'Bu vaqt oralig\'ida sizda allaqachon bron mavjud.';
 
     // Check room blocks — single-field query, filter date client-side
     final blockSnap = await _db.collection('room_blocks')
@@ -1015,6 +1138,15 @@ class AppProvider extends ChangeNotifier {
     if (i >= 0) {
       _seatBookings[i] = _seatBookings[i].copyWith(status: 'arrived', arrivedAt: now);
       notifyListeners();
+      // Notify librarians
+      final b = _seatBookings[i];
+      unawaited(_notifyLibrarians(
+        title: 'Talaba keldi 🚪',
+        message: '${b.studentName} ${b.roomName} xonasiga keldi (${b.startTime}–${b.endTime})',
+        type: NotifType.arrivalConfirmed,
+        targetScreen: NotifScreen.rooms,
+        targetId: b.roomId,
+      ));
     }
   }
 
@@ -1027,8 +1159,17 @@ class AppProvider extends ChangeNotifier {
     });
     final i = _seatBookings.indexWhere((b) => b.id == id);
     if (i >= 0) {
-      _seatBookings[i] = _seatBookings[i].copyWith(status: 'confirmed', confirmedAt: now);
+      final b = _seatBookings[i];
+      _seatBookings[i] = b.copyWith(status: 'confirmed', confirmedAt: now);
       notifyListeners();
+      // Notify student
+      unawaited(_sendNotificationTo(b.studentId,
+        title: 'Kelishingiz tasdiqlandi ✅',
+        message: '${b.roomName} xonasida ${b.startTime}–${b.endTime} vaqtingiz tasdiqlandi',
+        type: NotifType.arrivalApproved,
+        targetScreen: NotifScreen.rooms,
+        targetId: b.roomId,
+      ));
     }
   }
 
@@ -1181,5 +1322,223 @@ class AppProvider extends ChangeNotifier {
 
   Future<void> deleteRoomBlock(String id) async {
     await _db.collection('room_blocks').doc(id).delete();
+  }
+
+  // ── Muhokama (discussions) ────────────────────────────────────────────────────
+
+  /// Fetches all discussions for a book, including their answers.
+  Future<List<DiscussionModel>> fetchDiscussions(String bookId) async {
+    final snap = await _db
+        .collection('books').doc(bookId)
+        .collection('discussions')
+        .orderBy('createdAt', descending: true)
+        .get();
+    final list = <DiscussionModel>[];
+    for (final doc in snap.docs) {
+      DiscussionAnswerModel? answer;
+      try {
+        final ansDoc = await _db
+            .collection('books').doc(bookId)
+            .collection('discussions').doc(doc.id)
+            .collection('answer').doc('answer')
+            .get();
+        if (ansDoc.exists) {
+          answer = DiscussionAnswerModel.fromFirestore(ansDoc);
+        }
+      } catch (_) {}
+      list.add(DiscussionModel.fromFirestore(doc, answer: answer));
+    }
+    return list;
+  }
+
+  Future<void> addDiscussion(String bookId, String text, String type) async {
+    final ref = _db
+        .collection('books').doc(bookId)
+        .collection('discussions').doc();
+    await ref.set({
+      'userId':    _currentUser!.id,
+      'userName':  _currentUser!.name,
+      'text':      text,
+      'type':      type,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> updateDiscussion(String bookId, String id, String newText) async {
+    await _db
+        .collection('books').doc(bookId)
+        .collection('discussions').doc(id)
+        .update({'text': newText});
+  }
+
+  Future<void> deleteDiscussion(String bookId, String id) async {
+    // Delete answer subcollection document first, then the discussion
+    try {
+      await _db
+          .collection('books').doc(bookId)
+          .collection('discussions').doc(id)
+          .collection('answer').doc('answer')
+          .delete();
+    } catch (_) {}
+    await _db
+        .collection('books').doc(bookId)
+        .collection('discussions').doc(id)
+        .delete();
+  }
+
+  /// Librarian adds or updates the single answer to a question.
+  Future<void> addDiscussionAnswer(String bookId, String discussionId, String text) async {
+    await _db
+        .collection('books').doc(bookId)
+        .collection('discussions').doc(discussionId)
+        .collection('answer').doc('answer')
+        .set({
+      'adminId':   _currentUser!.id,
+      'adminName': _currentUser!.name,
+      'text':      text,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // ── Firestore Notifications ───────────────────────────────────────────────────
+
+  void _startNotifListener() {
+    if (_currentUser == null) return;
+    _notifSub?.cancel();
+    _notifSub = _db
+        .collection('notifications')
+        .where('userId', isEqualTo: _currentUser!.id)
+        .snapshots()
+        .listen((snap) {
+      _notifications = snap.docs.map(NotificationItem.fromFirestore).toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      if (_notifications.length > 50) _notifications = _notifications.sublist(0, 50);
+      notifyListeners();
+    }, onError: (_) {});
+  }
+
+  Future<void> _sendNotificationTo(
+    String userId, {
+    required String title,
+    required String message,
+    required String type,
+    String? targetScreen,
+    String? targetId,
+  }) async {
+    try {
+      final ref = _db.collection('notifications').doc();
+      final item = NotificationItem(
+        id: ref.id, userId: userId, title: title,
+        message: message, type: type,
+        targetScreen: targetScreen, targetId: targetId,
+        createdAt: DateTime.now(),
+      );
+      await ref.set(item.toFirestore());
+    } catch (_) {}
+  }
+
+  Future<void> _notifyLibrarians({
+    required String title,
+    required String message,
+    required String type,
+    String? targetScreen,
+    String? targetId,
+  }) async {
+    try {
+      final snap = await _db.collection('users').where('role', isEqualTo: 'librarian').get();
+      final batch = _db.batch();
+      for (final doc in snap.docs) {
+        final ref = _db.collection('notifications').doc();
+        batch.set(ref, NotificationItem(
+          id: ref.id, userId: doc.id, title: title,
+          message: message, type: type,
+          targetScreen: targetScreen, targetId: targetId,
+          createdAt: DateTime.now(),
+        ).toFirestore());
+      }
+      await batch.commit();
+    } catch (_) {}
+  }
+
+  Future<void> markAsRead(String id) async {
+    try {
+      await _db.collection('notifications').doc(id).update({'isRead': true});
+      final i = _notifications.indexWhere((n) => n.id == id);
+      if (i >= 0) {
+        _notifications[i] = _notifications[i].copyWith(isRead: true);
+        notifyListeners();
+      }
+    } catch (_) {}
+  }
+
+  Future<void> markAllAsRead() async {
+    try {
+      final unread = _notifications.where((n) => !n.isRead).toList();
+      if (unread.isEmpty) return;
+      final batch = _db.batch();
+      for (final n in unread) {
+        batch.update(_db.collection('notifications').doc(n.id), {'isRead': true});
+      }
+      await batch.commit();
+      _notifications = _notifications.map((n) => n.copyWith(isRead: true)).toList();
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<void> _initFcm() async {
+    try {
+      final fcm = FirebaseMessaging.instance;
+      await fcm.requestPermission(alert: true, badge: true, sound: true);
+      final token = await fcm.getToken();
+      if (token != null && _currentUser != null) {
+        await _db.collection('users').doc(_currentUser!.id).update({'fcmToken': token});
+      }
+      fcm.onTokenRefresh.listen((newToken) async {
+        if (_currentUser != null) {
+          await _db.collection('users').doc(_currentUser!.id).update({'fcmToken': newToken});
+        }
+      });
+    } catch (_) {}
+  }
+
+  // ── Visitor Analytics ─────────────────────────────────────────────────────────
+
+  /// Returns visitor count per day for the last [days] days.
+  /// Key: "yyyy-MM-dd", value: visitor count.
+  Future<Map<String, int>> fetchDailyVisitors({int days = 30}) async {
+    final from = DateTime.now().subtract(Duration(days: days));
+    final snap = await _db
+        .collection('seat_bookings')
+        .where('status', whereIn: ['confirmed', 'arrived', 'left'])
+        .get();
+    final map = <String, int>{};
+    for (final doc in snap.docs) {
+      final d = doc.data() as Map<String, dynamic>;
+      final date = (d['date'] as Timestamp?)?.toDate();
+      if (date == null || date.isBefore(from)) continue;
+      final key =
+          '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+      map[key] = (map[key] ?? 0) + 1;
+    }
+    return map;
+  }
+
+  /// Returns visitor count per hour (0–23) for a specific date.
+  Future<Map<int, int>> fetchHourlyVisitors(DateTime date) async {
+    final snap = await _db
+        .collection('seat_bookings')
+        .where('status', whereIn: ['confirmed', 'arrived', 'left'])
+        .get();
+    final map = <int, int>{};
+    for (final doc in snap.docs) {
+      final d = doc.data() as Map<String, dynamic>;
+      final bookDate = (d['date'] as Timestamp?)?.toDate();
+      if (bookDate == null || !_sameDay(bookDate, date)) continue;
+      final startTime = d['startTime'] as String? ?? '';
+      if (startTime.isEmpty) continue;
+      final hour = int.tryParse(startTime.split(':')[0]) ?? 0;
+      map[hour] = (map[hour] ?? 0) + 1;
+    }
+    return map;
   }
 }

@@ -10,17 +10,25 @@ import '../../l10n.dart';
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 class LibReservationsScreen extends StatefulWidget {
-  const LibReservationsScreen();
+  /// Optional: pre-select a filter on open (e.g. 'return_requested').
+  final String? initialFilter;
+  const LibReservationsScreen({this.initialFilter});
 
   @override
   State<LibReservationsScreen> createState() => _LibReservationsScreenState();
 }
 
 class _LibReservationsScreenState extends State<LibReservationsScreen> {
-  String _filter  = 'pending_confirm';
-  String _search  = '';
+  late String _filter;
+  String _search = '';
   static const int _pageSize = 15;
   int _page = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    _filter = widget.initialFilter ?? 'pending_confirm';
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -106,6 +106,8 @@ class S {
   String get registerLink => _t("Ro'yhatdan o'tish", 'Register', 'Зарегистрироваться');
   String get errorOccurred    => _t('Xatolik yuz berdi', 'An error occurred', 'Произошла ошибка');
   String get wrongCredentials => _t('Email yoki parol noto\'g\'ri', 'Incorrect email or password', 'Неверный email или пароль');
+  String get userNotFound     => _t('Bu email bilan foydalanuvchi topilmadi', 'No account found with this email', 'Пользователь с таким email не найден');
+  String get wrongPassword    => _t('Parol noto\'g\'ri', 'Incorrect password', 'Неверный пароль');
   String get invalidEmail     => _t('Email noto\'g\'ri formatda', 'Invalid email format', 'Неверный формат email');
   String get tooManyRequests  => _t('Ko\'p urinish! Biroz kuting', 'Too many attempts! Please wait', 'Слишком много попыток! Подождите');
   String get userDisabled     => _t('Bu hisob bloklangan', 'This account is disabled', 'Этот аккаунт заблокирован');
@@ -153,8 +155,12 @@ class S {
   String get add => _t('Qo\'shish', 'Add', 'Добавить');
   String get deleteBookTitle => _t("Kitobni o'chirish", 'Delete book', 'Удалить книгу');
   String deleteConfirm(String title) => _t('"$title" kitobini o\'chirishni tasdiqlaysizmi?', 'Delete "$title"?', '"$title" ni o\'chirish?');
-  String get cancel => _t('Bekor', 'Cancel', 'Отмена');
-  String get delete => _t("O'chirish", 'Delete', 'Удалить');
+  String get cancel      => _t('Bekor', 'Cancel', 'Отмена');
+  String get exitTitle   => _t('Chiqish', 'Exit', 'Выход');
+  String get exitMessage => _t("Ilovadan chiqmoqchimisiz?", 'Do you want to exit the app?', 'Вы хотите выйти из приложения?');
+  String get exitNo      => _t("Yo'q", 'No', 'Нет');
+  String get exitYes     => _t('Ha', 'Yes', 'Да');
+  String get delete      => _t("O'chirish", 'Delete', 'Удалить');
   String get editComment => _t('Izohni tahrirlash', 'Edit comment', 'Редактировать комментарий');
   String get editQuestion => _t('Savolni tahrirlash', 'Edit question', 'Редактировать вопрос');
   String get deleteCommentConfirm => _t("Izohni o'chirishni tasdiqlaysizmi?", 'Delete this comment?', 'Удалить этот комментарий?');
@@ -231,6 +237,11 @@ class S {
   String get submitQuestion => _t('Savol yuborish', 'Submit question', 'Отправить вопрос');
   String get writeAnswer    => _t('Javob yozing', 'Write an answer', 'Написать ответ');
   String get submitAnswer   => _t('Javob yuborish', 'Submit answer', 'Отправить ответ');
+  String get editAnswer     => _t('Javobni tahrirlash', 'Edit answer', 'Редактировать ответ');
+  String get deleteAnswer   => _t('Javobni o\'chirish', 'Delete answer', 'Удалить ответ');
+  String get deleteAnswerConfirm => _t('Javobni o\'chirishni tasdiqlaysizmi?', 'Delete this answer?', 'Удалить этот ответ?');
+  String get showMore => _t('Ko\'proq ko\'rish', 'Show more', 'Показать больше');
+  String get showLess => _t('Kamroq ko\'rish', 'Show less', 'Показать меньше');
   String get noReviews      => _t("Hali sharh yo'q", 'No reviews yet', 'Отзывов пока нет');
   String get noQuestions    => _t("Hali savol yo'q", 'No questions yet', 'Вопросов пока нет');
   String get alreadyReviewed => _t('Siz allaqachon sharh qoldirdingiz', 'You already reviewed this book', 'Вы уже оставили отзыв');
@@ -311,6 +322,38 @@ class S {
   String get passwordResetSent  => _t('Tiklash havolasi emailingizga yuborildi!', 'Reset link sent to your email!', 'Ссылка отправлена на email!');
   String get account            => _t('Hisob', 'Account', 'Аккаунт');
   String get comingSoon         => _t('Tez kunda...', 'Coming soon...', 'Скоро...');
+
+  // Discussion system
+  String get discussions       => _t('Muhokama', 'Discussion', 'Обсуждение');
+  String get writeComment      => _t('Izoh yozing', 'Write a comment', 'Написать комментарий');
+  String get commentHint       => _t('Izohingizni yozing...', 'Write your comment...', 'Напишите ваш комментарий...');
+  String get submitComment     => _t('Izoh yuborish', 'Submit comment', 'Отправить');
+  String get submitCommentBtn  => _t('Yuborish', 'Submit', 'Отправить');
+  String get noDiscussions     => _t("Hali izoh yoki savol yo'q", 'No comments or questions yet', 'Нет комментариев или вопросов');
+  String get commentTab        => _t('Izoh', 'Comment', 'Комментарий');
+  String get questionTab       => _t('Savol', 'Question', 'Вопрос');
+  String get addAnswer         => _t('Javob berish', 'Answer', 'Ответить');
+  String get answerHint        => _t('Javobingizni yozing...', 'Write your answer...', 'Напишите ответ...');
+  String get answerSaved       => _t('Javob saqlandi', 'Answer saved', 'Ответ сохранён');
+  String get deleteDiscussionConfirm => _t("O'chirishni tasdiqlaysizmi?", 'Delete this item?', 'Удалить?');
+  String get editText          => _t('Tahrirlash', 'Edit', 'Редактировать');
+
+  // Visitor analytics
+  String get visitorAnalytics  => _t('Tashrif statistikasi', 'Visitor Analytics', 'Аналитика посещений');
+  String get visitorsPerDay    => _t('Kunlik tashrif', 'Daily visitors', 'Посетители по дням');
+  String get visitorsPerHour   => _t('Soatlik tashrif', 'Hourly visitors', 'Посетители по часам');
+  String get selectDayForHours => _t('Soatlik ko\'rish uchun kun tanlang', 'Select a day to view hourly', 'Выберите день для почасового просмотра');
+  String get noAnalyticsData   => _t('Ma\'lumot topilmadi', 'No data found', 'Данных нет');
+  String visitors(int n)       => _t('$n tashrif', '$n visitors', '$n посетителей');
+
+  // Multi-hour booking
+  String get bookingDuration   => _t('Davomiylik', 'Duration', 'Длительность');
+  String get selectHours       => _t('Soat tanlang', 'Select hours', 'Выберите часы');
+
+  // Arrival confirmation
+  String get confirmArrivalBtn => _t('Keldim', 'I\'m here', 'Я здесь');
+  String get arrivalSent       => _t('Kelishingiz kutubxonachiga yuborildi', 'Arrival sent to librarian', 'Библиотекарь оповещён о вашем прибытии');
+  String get arrivalWindowOpen => _t('Tasdiqlash vaqti aktiv', 'Confirmation window active', 'Окно подтверждения активно');
 
   // Slot states
   String get slotStarted        => _t('Boshlandi', 'Started', 'Началось');

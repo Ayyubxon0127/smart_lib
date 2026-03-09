@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../constants.dart';
 import '../../l10n.dart';
@@ -19,28 +20,91 @@ class StudentMain extends StatefulWidget {
 
 class _StudentMainState extends State<StudentMain> {
   int _index = 0;
+  DateTime _announcementsLastSeen = DateTime.fromMillisecondsSinceEpoch(0);
 
   void _goTo(int index) => setState(() => _index = index);
 
+  void _openAnnouncements(BuildContext context) {
+    setState(() => _announcementsLastSeen = DateTime.now());
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const NewsScreen()),
+    );
+  }
+
+  Future<void> _onBackPressed() async {
+    if (_index != 0) {
+      FocusScope.of(context).unfocus();
+      setState(() => _index = 0);
+      return;
+    }
+    if (!mounted) return;
+    final s = S.read(context);
+    final exit = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          s.exitTitle,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        content: Text(s.exitMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(s.exitNo,
+                style: const TextStyle(fontWeight: FontWeight.w700)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+              elevation: 0,
+            ),
+            child: Text(s.exitYes,
+                style: const TextStyle(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (mounted && exit == true) SystemNavigator.pop();
+  }
+
   @override
   Widget build(BuildContext context) {
-    context.watch<AppProvider>();
+    final app = context.watch<AppProvider>();
     final s = S.of(context);
 
+    final unreadAnnCount = app.announcements
+        .where((a) => a.date.isAfter(_announcementsLastSeen))
+        .length;
+
     final screens = [
-      StudentHomeScreen(onNavigate: _goTo),
+      StudentHomeScreen(
+        onNavigate: _goTo,
+        onOpenAnnouncements: () => _openAnnouncements(context),
+        announcementBadgeCount: unreadAnnCount,
+      ),
       const BooksScreen(),
       const LibraryBookingScreen(),
       const MyBooksScreen(),
-      const NewsScreen(),
       const SettingsScreen(),
     ];
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (_, __) => _onBackPressed(),
+      child: Scaffold(
       body: IndexedStack(index: _index, children: screens),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
+        onDestinationSelected: (i) {
+          FocusScope.of(context).unfocus();
+          setState(() => _index = i);
+        },
         backgroundColor: Theme.of(context).cardColor,
         indicatorColor: AppColors.accent.withOpacity(0.2),
         labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
@@ -49,10 +113,9 @@ class _StudentMainState extends State<StudentMain> {
           NavigationDestination(icon: const Icon(Icons.menu_book_outlined),    selectedIcon: const Icon(Icons.menu_book_rounded),    label: s.navBooks),
           NavigationDestination(icon: const Icon(Icons.meeting_room_outlined), selectedIcon: const Icon(Icons.meeting_room_rounded), label: s.navRooms),
           NavigationDestination(icon: const Icon(Icons.bookmark_outline),      selectedIcon: const Icon(Icons.bookmark_rounded),     label: s.navMine),
-          NavigationDestination(icon: const Icon(Icons.campaign_outlined),     selectedIcon: const Icon(Icons.campaign_rounded),     label: s.navNews),
           NavigationDestination(icon: const Icon(Icons.settings_outlined),     selectedIcon: const Icon(Icons.settings_rounded),     label: s.navSettings),
         ],
       ),
-    );
+    ));
   }
 }

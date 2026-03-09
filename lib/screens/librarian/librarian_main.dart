@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../providers/app_provider.dart';
 import '../../constants.dart';
@@ -22,6 +23,47 @@ class _LibrarianMainState extends State<LibrarianMain> {
 
   void _goTo(int index) => setState(() => _index = index);
 
+  Future<void> _onBackPressed() async {
+    if (_index != 0) {
+      FocusScope.of(context).unfocus();
+      setState(() => _index = 0);
+      return;
+    }
+    if (!mounted) return;
+    final s = S.read(context);
+    final exit = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          s.exitTitle,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        content: Text(s.exitMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(s.exitNo,
+                style: const TextStyle(fontWeight: FontWeight.w700)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+              elevation: 0,
+            ),
+            child: Text(s.exitYes,
+                style: const TextStyle(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (mounted && exit == true) SystemNavigator.pop();
+  }
+
   @override
   Widget build(BuildContext context) {
     context.watch<AppProvider>();
@@ -34,11 +76,17 @@ class _LibrarianMainState extends State<LibrarianMain> {
       const LibAnnouncementsScreen(),
       const SettingsScreen(),
     ];
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (_, __) => _onBackPressed(),
+      child: Scaffold(
       body: IndexedStack(index: _index, children: screens),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
+        onDestinationSelected: (i) {
+          FocusScope.of(context).unfocus();
+          setState(() => _index = i);
+        },
         backgroundColor: Theme.of(context).cardColor,
         indicatorColor: AppColors.accent.withOpacity(0.2),
         labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
@@ -51,6 +99,6 @@ class _LibrarianMainState extends State<LibrarianMain> {
           NavigationDestination(icon: const Icon(Icons.settings_outlined),     selectedIcon: const Icon(Icons.settings_rounded),     label: s.navSettings),
         ],
       ),
-    );
+    ));
   }
 }

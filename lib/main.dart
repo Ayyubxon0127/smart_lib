@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -9,13 +10,18 @@ import 'screens/login_screen.dart';
 import 'screens/student/student_main.dart';
 import 'screens/librarian/librarian_main.dart';
 import 'services/notification_service.dart';
+import 'services/fcm_service.dart';
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   await NotificationService.init();
+  await FcmService.init(navigatorKey);
   runApp(const SmartKutubxonaApp());
 }
 
@@ -33,13 +39,14 @@ class SmartKutubxonaApp extends StatelessWidget {
           return MaterialApp(
             title: 'Smart Kutubxona',
             debugShowCheckedModeBanner: false,
+            navigatorKey: navigatorKey,
             locale: Locale(app.lang),
             themeMode: app.useSystemTheme
                 ? ThemeMode.system
                 : (app.isDark ? ThemeMode.dark : ThemeMode.light),
             theme: _buildTheme(Brightness.light),
             darkTheme: _buildTheme(Brightness.dark),
-            home: app.loading && app.currentUser == null
+            home: !app.initialized
                 ? const Scaffold(body: Center(child: CircularProgressIndicator()))
                 : app.currentUser == null
                 ? const LoginScreen()
