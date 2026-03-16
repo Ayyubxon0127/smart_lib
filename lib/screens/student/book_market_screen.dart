@@ -317,8 +317,8 @@ class _BookMarketScreenState extends State<BookMarketScreen> {
 //  Add Listing Sheet — callable from both screen and detail
 // ─────────────────────────────────────────────────────────────────────────────
 
-void showAddListingSheet(BuildContext context, AppProvider app, S s) {
-  showModalBottomSheet(
+Future<void> showAddListingSheet(BuildContext context, AppProvider app, S s) async {
+  await showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     backgroundColor: Theme.of(context).cardColor,
