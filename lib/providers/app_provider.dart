@@ -1023,10 +1023,27 @@ class AppProvider extends ChangeNotifier {
     }, onError: (_) {});
   }
 
-  /// 'arrived' statusidagi bronlar — librarian tasdiqlashi kerak
-  List<SeatBookingModel> get pendingArrivalBookings =>
-      _seatBookings.where((b) => b.status == 'arrived').toList()
-        ..sort((a, b) => (a.arrivedAt ?? a.createdAt).compareTo(b.arrivedAt ?? b.createdAt));
+  /// Tasdiqlash kutayotgan bronlar:
+  /// — status='arrived' (talaba "Keldim" bosgan)
+  /// — status='active' va hozir [start−30min, start+30min] oralig'ida (librarian to'g'ridan tasdiqlashi mumkin)
+  List<SeatBookingModel> get pendingArrivalBookings {
+    final now   = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return _seatBookings.where((b) {
+      final d = b.date;
+      if (d.year != today.year || d.month != today.month || d.day != today.day) return false;
+      if (b.status == 'arrived') return true;
+      if (b.status == 'active') {
+        final parts   = b.startTime.split(':');
+        final startDT = DateTime(d.year, d.month, d.day,
+            int.parse(parts[0]), int.parse(parts[1]));
+        return now.isAfter(startDT.subtract(const Duration(minutes: 30))) &&
+            now.isBefore(startDT.add(const Duration(minutes: 30)));
+      }
+      return false;
+    }).toList()
+      ..sort((a, b) => (a.arrivedAt ?? a.createdAt).compareTo(b.arrivedAt ?? b.createdAt));
+  }
 
   static int _timeToMin(String t) {
     final p = t.split(':');

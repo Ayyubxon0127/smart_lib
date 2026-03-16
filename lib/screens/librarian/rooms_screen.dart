@@ -121,6 +121,16 @@ class _RoomListTab extends StatelessWidget {
 
 // ── Status helpers ────────────────────────────────────────────────────────────
 
+/// Returns true if current time is within [startTime − 30min, startTime + 30min].
+bool _inConfirmWindow(SeatBookingModel b) {
+  final parts   = b.startTime.split(':');
+  final startDT = DateTime(b.date.year, b.date.month, b.date.day,
+      int.parse(parts[0]), int.parse(parts[1]));
+  final now = DateTime.now();
+  return now.isAfter(startDT.subtract(const Duration(minutes: 30))) &&
+      now.isBefore(startDT.add(const Duration(minutes: 30)));
+}
+
 String _effectiveStatus(SeatBookingModel b) {
   if (b.status == 'cancelled') return 'cancelled';
   if (b.status == 'left')      return 'finished';
@@ -232,8 +242,12 @@ class _BookingsAdminTabState extends State<_BookingsAdminTab> {
     final arrivedList = allBookings
         .where((b) {
           final d = b.date;
-          return b.status == 'arrived' &&
-              d.year == today.year && d.month == today.month && d.day == today.day;
+          if (d.year != today.year || d.month != today.month || d.day != today.day) return false;
+          // Student pressed "Keldim" (arrived)
+          if (b.status == 'arrived') return true;
+          // Student is active and within ±30 min window — librarian can confirm directly
+          if (b.status == 'active' && _inConfirmWindow(b)) return true;
+          return false;
         })
         .toList();
 
@@ -477,7 +491,9 @@ class _LibBookingCardState extends State<_LibBookingCard> {
     final effectiveStatus = _effectiveStatus(b);
     final color = _bookingStatusColor(effectiveStatus);
     final label = _bookingStatusLabel(effectiveStatus);
-    final canConfirm = b.status == 'arrived';
+    // Allow confirm if student pressed "Keldim" (arrived) OR if active within ±30 min window
+    final canConfirm = b.status == 'arrived' ||
+        (b.status == 'active' && _inConfirmWindow(b));
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
