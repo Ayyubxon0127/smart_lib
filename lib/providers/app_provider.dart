@@ -99,7 +99,7 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> _init() async {
-    await Future.wait([_loadPrefs(), _restoreSession()]);
+    await Future.wait([_loadPrefs(), _restoreSession(), _loadSavedMarket()]);
     _initialized = true;
     notifyListeners();
   }
@@ -239,6 +239,7 @@ class AppProvider extends ChangeNotifier {
       fetchFaqItems(),
       fetchFavorites(),
       fetchClosedDays(),
+      fetchMarketItems(),
       if (_role == 'librarian') fetchStudents(),
     ]);
     _startNotifListener();
@@ -874,6 +875,7 @@ class AppProvider extends ChangeNotifier {
       type: NotifType.newReview,
       targetScreen: NotifScreen.bookDetailReviews, // → Sharhlar tab (1)
       targetId: bookId,
+      targetId2: reviewRef.id, // reviewId — scroll to this review
     ));
   }
 
@@ -906,6 +908,7 @@ class AppProvider extends ChangeNotifier {
       type: NotifType.newQuestion,
       targetScreen: NotifScreen.bookDetailQuestions, // → Savollar tab (2)
       targetId: bookId,
+      targetId2: ref.id, // questionId — scroll to this question
     ));
   }
 
@@ -930,6 +933,7 @@ class AppProvider extends ChangeNotifier {
         type: NotifType.questionAnswered,
         targetScreen: NotifScreen.bookDetailQuestions, // → Savollar tab (2)
         targetId: bookId,
+        targetId2: questionId, // scroll to this question
       ));
     }
   }
@@ -1424,13 +1428,14 @@ class AppProvider extends ChangeNotifier {
     required String type,
     String? targetScreen,
     String? targetId,
+    String? targetId2,
   }) async {
     try {
       final ref = _db.collection('notifications').doc();
       final item = NotificationItem(
         id: ref.id, userId: userId, title: title,
         message: message, type: type,
-        targetScreen: targetScreen, targetId: targetId,
+        targetScreen: targetScreen, targetId: targetId, targetId2: targetId2,
         createdAt: DateTime.now(),
       );
       await ref.set(item.toFirestore());
@@ -1443,6 +1448,7 @@ class AppProvider extends ChangeNotifier {
     required String type,
     String? targetScreen,
     String? targetId,
+    String? targetId2,
   }) async {
     try {
       final snap = await _db.collection('users').where('role', isEqualTo: 'librarian').get();
@@ -1452,11 +1458,30 @@ class AppProvider extends ChangeNotifier {
         batch.set(ref, NotificationItem(
           id: ref.id, userId: doc.id, title: title,
           message: message, type: type,
-          targetScreen: targetScreen, targetId: targetId,
+          targetScreen: targetScreen, targetId: targetId, targetId2: targetId2,
           createdAt: DateTime.now(),
         ).toFirestore());
       }
       await batch.commit();
+    } catch (_) {}
+  }
+
+  /// Marks an announcement as read for the current user (Firestore readBy array).
+  Future<void> markAnnouncementRead(String id) async {
+    final userId = _currentUser?.id;
+    if (userId == null) return;
+    final i = _announcements.indexWhere((a) => a.id == id);
+    if (i >= 0 && _announcements[i].readBy.contains(userId)) return; // already read
+    try {
+      await _db.collection('announcements').doc(id).update({
+        'readBy': FieldValue.arrayUnion([userId]),
+      });
+      if (i >= 0) {
+        _announcements[i] = _announcements[i].copyWith(
+          readBy: [..._announcements[i].readBy, userId],
+        );
+        notifyListeners();
+      }
     } catch (_) {}
   }
 
@@ -1540,5 +1565,101 @@ class AppProvider extends ChangeNotifier {
       map[hour] = (map[hour] ?? 0) + 1;
     }
     return map;
+  }
+
+  // ── Kitob bozori ──────────────────────────────────────────────────────────────
+
+  Set<String> _savedMarketItems = {};
+  Set<String> get savedMarketItems => _savedMarketItems;
+  bool isMarketSaved(String id) => _savedMarketItems.contains(id);
+
+  Future<void> fetchMarketItems() async {
+    try {
+      // orderBy removed — no composite index needed; sort client-side
+      final snap = await _db.collection('book_market').get();
+      _marketItems = snap.docs.map(BookMarketItem.fromFirestore).toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<void> toggleSaveMarketItem(String id) async {
+    if (_savedMarketItems.contains(id)) {
+      _savedMarketItems.remove(id);
+    } else {
+      _savedMarketItems.add(id);
+    }
+    notifyListeners();
+    // Persist locally
+    final p = await SharedPreferences.getInstance();
+    await p.setString('saved_market', _savedMarketItems.join(','));
+  }
+
+  Future<void> _loadSavedMarket() async {
+    final p = await SharedPreferences.getInstance();
+    final raw = p.getString('saved_market') ?? '';
+    _savedMarketItems = raw.isEmpty ? {} : raw.split(',').toSet();
+  }
+
+  Future<void> incrementMarketViewCount(String id) async {
+    try {
+      await _db.collection('book_market').doc(id)
+          .update({'view_count': FieldValue.increment(1)});
+      final i = _marketItems.indexWhere((m) => m.id == id);
+      if (i >= 0) {
+        _marketItems[i] = _marketItems[i].copyWith(
+            viewCount: _marketItems[i].viewCount + 1);
+        notifyListeners();
+      }
+    } catch (_) {}
+  }
+
+  Future<void> addMarketItem({
+    required String title,
+    required String author,
+    required String description,
+    required String category,
+    required String type,
+    required String condition,
+    double? price,
+    String? imageUrl,
+    required String contactPhone,
+  }) async {
+    if (_currentUser == null) return;
+    final ref = _db.collection('book_market').doc();
+    final item = BookMarketItem(
+      id:           ref.id,
+      title:        title,
+      author:       author,
+      description:  description,
+      category:     category,
+      price:        price,
+      imageUrl:     imageUrl?.trim().isEmpty == true ? null : imageUrl?.trim(),
+      type:         type,
+      status:       'available',
+      condition:    condition,
+      userId:       _currentUser!.id,
+      userName:     _currentUser!.name,
+      contactPhone: contactPhone,
+      createdAt:    DateTime.now(),
+    );
+    await ref.set(item.toFirestore());
+    _marketItems.insert(0, item);
+    notifyListeners();
+  }
+
+  Future<void> updateMarketItemStatus(String id, String status) async {
+    await _db.collection('book_market').doc(id).update({'status': status});
+    final i = _marketItems.indexWhere((m) => m.id == id);
+    if (i >= 0) {
+      _marketItems[i] = _marketItems[i].copyWith(status: status);
+      notifyListeners();
+    }
+  }
+
+  Future<void> deleteMarketItem(String id) async {
+    await _db.collection('book_market').doc(id).delete();
+    _marketItems.removeWhere((m) => m.id == id);
+    notifyListeners();
   }
 }

@@ -10,10 +10,11 @@ import 'students_screen.dart';
 import 'visitor_analytics_page.dart';
 
 // ─── Navigation index constants ───────────────────────────────────────────────
-const int kLibBooksIndex = 1;
-const int kLibResIndex   = 2;
-const int kLibRoomsIndex = 3;
-const int kLibNewsIndex  = 4;
+const int kLibBooksIndex  = 1;
+const int kLibResIndex    = 2;
+const int kLibRoomsIndex  = 3;
+const int kLibNewsIndex   = 4;
+const int kLibMarketIndex = 5;
 
 // ─── Dashboard Screen ─────────────────────────────────────────────────────────
 
@@ -25,11 +26,12 @@ class LibDashboardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final app       = context.watch<AppProvider>();
     final s         = S.of(context);
-    final pending   = app.reservations.where((r) => r.status == 'pending_confirm').length;
-    final active    = app.reservations.where((r) => r.status == 'active').length;
-    final returnReq = app.reservations.where((r) => r.status == 'return_requested').length;
-    final overdue   = app.reservations.where((r) => r.isOverdue).length;
+    final pending      = app.reservations.where((r) => r.status == 'pending_confirm').length;
+    final active       = app.reservations.where((r) => r.status == 'active').length;
+    final returnReq    = app.reservations.where((r) => r.status == 'return_requested').length;
+    final overdue      = app.reservations.where((r) => r.isOverdue).length;
     final arrivedCount = app.pendingArrivalBookings.length;
+    final marketActive = app.marketItems.where((m) => m.isAvailable).length;
 
     return Scaffold(
       appBar: AppBar(
@@ -75,26 +77,33 @@ class LibDashboardScreen extends StatelessWidget {
                   color: AppColors.blue,
                   onTap: () => onNavigate?.call(kLibBooksIndex),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 _QuickTile(
                   icon: Icons.bookmark_rounded,
                   label: s.navReservations,
                   color: AppColors.green,
                   onTap: () => onNavigate?.call(kLibResIndex),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 _QuickTile(
                   icon: Icons.meeting_room_rounded,
                   label: s.navRooms,
                   color: AppColors.purple,
                   onTap: () => onNavigate?.call(kLibRoomsIndex),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 _QuickTile(
                   icon: Icons.campaign_rounded,
                   label: s.navNews,
                   color: AppColors.orange,
                   onTap: () => onNavigate?.call(kLibNewsIndex),
+                ),
+                const SizedBox(width: 8),
+                _QuickTile(
+                  icon: Icons.storefront_rounded,
+                  label: s.navMarket,
+                  color: AppColors.teal,
+                  onTap: () => onNavigate?.call(kLibMarketIndex),
                 ),
               ],
             ),
@@ -116,6 +125,14 @@ class LibDashboardScreen extends StatelessWidget {
                 value: '${app.students.length}',
                 onTap: () => Navigator.push(context,
                     MaterialPageRoute(builder: (_) => const StudentsListPage())),
+              )),
+              const SizedBox(width: 10),
+              Expanded(child: _StatCard(
+                icon: Icons.storefront_rounded,
+                color: AppColors.teal,
+                label: s.navMarket,
+                value: '$marketActive',
+                onTap: () => onNavigate?.call(kLibMarketIndex),
               )),
             ]),
             const SizedBox(height: 10),

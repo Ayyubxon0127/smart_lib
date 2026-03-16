@@ -168,7 +168,7 @@ class _FirestoreNotifCard extends StatelessWidget {
   }
 
   void _navigate(BuildContext context) {
-    FcmService.navigateTo(context, item.targetScreen, item.targetId);
+    FcmService.navigateTo(context, item.targetScreen, item.targetId, targetId2: item.targetId2);
   }
 
   (IconData, Color) _iconAndColor(String type) {

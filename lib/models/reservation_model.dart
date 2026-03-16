@@ -70,6 +70,8 @@ class AnnouncementModel {
   final String? imageUrl;
   final String author;
   final DateTime date;
+  /// List of user IDs that have read this announcement.
+  final List<String> readBy;
 
   const AnnouncementModel({
     required this.id,
@@ -82,6 +84,7 @@ class AnnouncementModel {
     this.imageUrl,
     required this.author,
     required this.date,
+    this.readBy = const [],
   });
 
   factory AnnouncementModel.fromFirestore(DocumentSnapshot doc) {
@@ -97,6 +100,7 @@ class AnnouncementModel {
       imageUrl: d['imageUrl'],
       author: d['author'] ?? '',
       date: (d['date'] as Timestamp).toDate(),
+      readBy: List<String>.from(d['readBy'] ?? []),
     );
   }
 
@@ -110,6 +114,7 @@ class AnnouncementModel {
     'imageUrl': imageUrl,
     'author': author,
     'date': Timestamp.fromDate(date),
+    'readBy': readBy,
   };
 
   AnnouncementModel copyWith({
@@ -123,6 +128,7 @@ class AnnouncementModel {
     String? imageUrl,
     String? author,
     DateTime? date,
+    List<String>? readBy,
   }) => AnnouncementModel(
     id: id ?? this.id,
     title: title ?? this.title,
@@ -134,5 +140,6 @@ class AnnouncementModel {
     imageUrl: imageUrl ?? this.imageUrl,
     author: author ?? this.author,
     date: date ?? this.date,
+    readBy: readBy ?? this.readBy,
   );
 }

@@ -42,7 +42,9 @@ class _Slot {
 
 class LibraryBookingScreen extends StatefulWidget {
   final int initialTab;
-  const LibraryBookingScreen({super.key, this.initialTab = 0});
+  /// Optional: highlight a specific booking by id in the My Bookings tab.
+  final String? highlightBookingId;
+  const LibraryBookingScreen({super.key, this.initialTab = 0, this.highlightBookingId});
 
   @override
   State<LibraryBookingScreen> createState() => _LibraryBookingScreenState();
@@ -80,9 +82,9 @@ class _LibraryBookingScreenState extends State<LibraryBookingScreen>
       ),
       body: TabBarView(
         controller: _tabs,
-        children: const [
-          _BookRoomTab(),
-          _MyBookingsTab(),
+        children: [
+          const _BookRoomTab(),
+          _MyBookingsTab(highlightBookingId: widget.highlightBookingId),
         ],
       ),
     );
@@ -1036,8 +1038,29 @@ class _StatusPill extends StatelessWidget {
 // Tab 2 — My bookings
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _MyBookingsTab extends StatelessWidget {
-  const _MyBookingsTab();
+class _MyBookingsTab extends StatefulWidget {
+  final String? highlightBookingId;
+  const _MyBookingsTab({this.highlightBookingId});
+
+  @override
+  State<_MyBookingsTab> createState() => _MyBookingsTabState();
+}
+
+class _MyBookingsTabState extends State<_MyBookingsTab> {
+  final _highlightKey = GlobalKey();
+  bool _scrolled = false;
+
+  void _tryScroll() {
+    if (_scrolled || widget.highlightBookingId == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = _highlightKey.currentContext;
+      if (ctx != null) {
+        _scrolled = true;
+        Scrollable.ensureVisible(ctx,
+            duration: const Duration(milliseconds: 400), alignment: 0.2);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1045,7 +1068,7 @@ class _MyBookingsTab extends StatelessWidget {
     final s   = S.of(context);
     final now = DateTime.now();
 
-    bool _isPast(SeatBookingModel b) {
+    bool isPast(SeatBookingModel b) {
       if (b.status == 'cancelled' || b.status == 'no_show') return true;
       final slotStart = DateTime(b.date.year, b.date.month, b.date.day,
           int.parse(b.startTime.split(':')[0]));
@@ -1053,12 +1076,12 @@ class _MyBookingsTab extends StatelessWidget {
     }
 
     final upcoming = app.seatBookings
-        .where((b) => !_isPast(b))
+        .where((b) => !isPast(b))
         .toList()
       ..sort((a, b) => a.date.compareTo(b.date));
 
     final past = app.seatBookings
-        .where(_isPast)
+        .where(isPast)
         .toList()
       ..sort((a, b) => b.date.compareTo(a.date));
 
@@ -1101,7 +1124,15 @@ class _MyBookingsTab extends StatelessWidget {
                       icon: Icons.upcoming_outlined,
                       color: AppColors.green),
                   const SizedBox(height: 8),
-                  ...upcoming.map((b) => _BookingCard(booking: b)),
+                  ...upcoming.map((b) {
+                    final isHighlighted = b.id == widget.highlightBookingId;
+                    if (isHighlighted) _tryScroll();
+                    return _BookingCard(
+                      key: isHighlighted ? _highlightKey : ValueKey(b.id),
+                      booking: b,
+                      highlighted: isHighlighted,
+                    );
+                  }),
                   const SizedBox(height: 12),
                 ],
                 if (past.isNotEmpty) ...[
@@ -1110,7 +1141,16 @@ class _MyBookingsTab extends StatelessWidget {
                       icon: Icons.history_rounded,
                       color: Colors.grey),
                   const SizedBox(height: 8),
-                  ...past.map((b) => _BookingCard(booking: b, isPast: true)),
+                  ...past.map((b) {
+                    final isHighlighted = b.id == widget.highlightBookingId;
+                    if (isHighlighted) _tryScroll();
+                    return _BookingCard(
+                      key: isHighlighted ? _highlightKey : ValueKey(b.id),
+                      booking: b,
+                      isPast: true,
+                      highlighted: isHighlighted,
+                    );
+                  }),
                 ],
               ],
             ),
@@ -1149,7 +1189,8 @@ class _SectionLabel extends StatelessWidget {
 class _BookingCard extends StatefulWidget {
   final SeatBookingModel booking;
   final bool isPast;
-  const _BookingCard({required this.booking, this.isPast = false});
+  final bool highlighted;
+  const _BookingCard({super.key, required this.booking, this.isPast = false, this.highlighted = false});
 
   @override
   State<_BookingCard> createState() => _BookingCardState();
@@ -1191,6 +1232,7 @@ class _BookingCardState extends State<_BookingCard> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: AppCard(
+        borderColor: widget.highlighted ? AppColors.accent.withOpacity(0.6) : null,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

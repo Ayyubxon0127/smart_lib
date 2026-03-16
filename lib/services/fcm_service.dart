@@ -52,6 +52,7 @@ class FcmService {
       _handlePayload(
         message.data['targetScreen'] as String?,
         message.data['targetId'] as String?,
+        message.data['targetId2'] as String?,
       );
     });
 
@@ -64,28 +65,31 @@ class FcmService {
       _handlePayload(
         initial.data['targetScreen'] as String?,
         initial.data['targetId'] as String?,
+        initial.data['targetId2'] as String?,
       );
     }
   }
 
   // ── Internal ─────────────────────────────────────────────────────────────────
 
-  static void _handlePayload(String? targetScreen, String? targetId) {
+  static void _handlePayload(String? targetScreen, String? targetId, [String? targetId2]) {
     final context = _navigatorKey?.currentContext;
     if (context == null) return;
-    navigateTo(context, targetScreen, targetId);
+    navigateTo(context, targetScreen, targetId, targetId2: targetId2);
   }
 
   // ── Public navigation helper ──────────────────────────────────────────────────
   // Also called from _FirestoreNotifCard so navigation logic lives in one place.
 
-  /// Navigates to the correct screen based on [targetScreen] and [targetId].
+  /// Navigates to the correct screen based on [targetScreen], [targetId], and
+  /// optional [targetId2] (secondary id, e.g. questionId/reviewId/bookingId).
   /// Role-aware: librarian and student get different destinations.
   static void navigateTo(
     BuildContext context,
     String? targetScreen,
-    String? targetId,
-  ) {
+    String? targetId, {
+    String? targetId2,
+  }) {
     if (targetScreen == null) return;
 
     final app = context.read<AppProvider>();
@@ -130,8 +134,9 @@ class FcmService {
             builder: (_) => const LibRoomsScreen(),
           ));
         } else {
+          // targetId2 = bookingId — highlight that specific booking slot
           nav.push(MaterialPageRoute(
-            builder: (_) => const LibraryBookingScreen(initialTab: 1),
+            builder: (_) => LibraryBookingScreen(initialTab: 1, highlightBookingId: targetId2),
           ));
         }
 
@@ -158,7 +163,7 @@ class FcmService {
           final book = app.books.where((b) => b.id == targetId).firstOrNull;
           if (book != null) {
             nav.push(MaterialPageRoute(
-              builder: (_) => BookDetailPage(book: book, initialTab: 1),
+              builder: (_) => BookDetailPage(book: book, initialTab: 1, highlightId: targetId2),
             ));
           }
         }
@@ -169,7 +174,7 @@ class FcmService {
           final book = app.books.where((b) => b.id == targetId).firstOrNull;
           if (book != null) {
             nav.push(MaterialPageRoute(
-              builder: (_) => BookDetailPage(book: book, initialTab: 2),
+              builder: (_) => BookDetailPage(book: book, initialTab: 2, highlightId: targetId2),
             ));
           }
         }

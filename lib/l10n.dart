@@ -405,6 +405,62 @@ class S {
     'Условия использования не загружены.',
   );
 
+  // Book market — navigation & titles
+  String get navMarket             => _t('Bozor', 'Market', 'Рынок');
+  String get bookMarketTitle       => _t('Kitob bozori', 'Book Market', 'Книжный рынок');
+  String get addListing            => _t("E'lon qo'shish", 'Post listing', 'Добавить объявление');
+  String get myListings            => _t("Mening e'lonlarim", 'My listings', 'Мои объявления');
+  String get allListings           => _t("Barcha e'lonlar", 'All listings', 'Все объявления');
+  String get savedListings         => _t("Saqlangan", 'Saved', 'Сохранённые');
+
+  // Listing types
+  String get marketTypeSell        => _t('Sotish', 'For sale', 'Продажа');
+  String get marketTypeRent        => _t('Ijara', 'For rent', 'Аренда');
+  String get marketTypeFree        => _t('Bepul', 'Free', 'Бесплатно');
+
+  // Listing status
+  String get marketStatusAvailable => _t('Mavjud', 'Available', 'Доступно');
+  String get marketStatusSold      => _t('Sotildi', 'Sold', 'Продано/Отдано');
+  String get markAsDone            => _t("Tugallandi deb belgilash", 'Mark as done', 'Отметить как выполнено');
+  String get markAsAvailableAgain  => _t("Qayta mavjud deb belgilash", 'Mark as available', 'Снова доступно');
+
+  // Book condition
+  String get conditionLabel        => _t('Holati', 'Condition', 'Состояние');
+  String get conditionNew          => _t('Yangi', 'New', 'Новая');
+  String get conditionGood         => _t("Yaxshi", 'Good', 'Хорошее');
+  String get conditionFair         => _t("O'rtacha", 'Fair', 'Среднее');
+  String get conditionWorn         => _t("Eskirgan", 'Worn', 'Потрёпанная');
+
+  // Contact
+  String get contactSeller         => _t("Bog'lanish", 'Contact', 'Связаться');
+  String get phoneCopied           => _t('Telefon nusxalandi!', 'Phone copied!', 'Телефон скопирован!');
+  String get callSeller            => _t('Qo\'ng\'iroq', 'Call', 'Позвонить');
+  String get telegramSeller        => _t('Telegram', 'Telegram', 'Telegram');
+  String get telegramCopied        => _t('Telegram raqami nusxalandi!', 'Telegram number copied!', 'Номер Telegram скопирован!');
+
+  // Form fields
+  String get noMarketItems         => _t("Hozircha e'lon yo'q", 'No listings yet', 'Объявлений пока нет');
+  String get marketPriceHint       => _t("Narx (so'm)", 'Price (UZS)', 'Цена (UZS)');
+  String get contactPhoneHint      => _t('Telefon raqam *', 'Contact phone *', 'Телефон для связи *');
+  String get listingType           => _t("E'lon turi", 'Listing type', 'Тип объявления');
+  String get deleteListingConfirm  => _t("E'lonni o'chirishni tasdiqlaysizmi?", 'Delete this listing?', 'Удалить объявление?');
+  String get freeLabel             => _t('Bepul', 'Free', 'Бесплатно');
+  String get postedBy              => _t('Egasi', 'Posted by', 'Продавец');
+  String get viewsLabel            => _t("Ko'rishlar", 'Views', 'Просмотры');
+
+  // Sections
+  String get trending              => _t('Mashhur', 'Trending', 'Популярное');
+  String get recentlyAdded         => _t("Yangi qo'shilganlar", 'Recently added', 'Недавно добавленные');
+  String get searchMarketHint      => _t('Kitob yoki muallif izlang...', 'Search books or author...', 'Поиск книг или автора...');
+  String get noSearchResults       => _t("Natija topilmadi", 'No results found', 'Ничего не найдено');
+  String get myAds                 => _t("E'lonlarim", 'My listings', 'Мои объявления');
+
+  // Detail page
+  String get sellerInfo            => _t('Sotuvchi', 'Seller', 'Продавец');
+  String get bookCondition         => _t('Kitob holati', 'Book condition', 'Состояние книги');
+  String get aboutBook             => _t('Kitob haqida', 'About book', 'О книге');
+  String get similarListings       => _t("O'xshash e'lonlar", 'Similar listings', 'Похожие объявления');
+
   String _t(String uz, String en, String ru) {
     if (lang == 'ru') return ru;
     if (lang == 'en') return en;

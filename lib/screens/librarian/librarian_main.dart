@@ -10,6 +10,7 @@ import 'lib_books_screen.dart';
 import 'reservations_screen.dart';
 import 'rooms_screen.dart';
 import 'announcements_screen.dart';
+import 'lib_market_screen.dart';
 
 class LibrarianMain extends StatefulWidget {
   const LibrarianMain({super.key});
@@ -74,6 +75,7 @@ class _LibrarianMainState extends State<LibrarianMain> {
       const LibReservationsScreen(),
       const LibRoomsScreen(),
       const LibAnnouncementsScreen(),
+      const LibMarketScreen(),
       const SettingsScreen(),
     ];
     return PopScope(
@@ -96,6 +98,7 @@ class _LibrarianMainState extends State<LibrarianMain> {
           NavigationDestination(icon: const Icon(Icons.bookmark_outline),      selectedIcon: const Icon(Icons.bookmark_rounded),     label: s.navReservations),
           NavigationDestination(icon: const Icon(Icons.meeting_room_outlined), selectedIcon: const Icon(Icons.meeting_room_rounded), label: s.navRooms),
           NavigationDestination(icon: const Icon(Icons.campaign_outlined),     selectedIcon: const Icon(Icons.campaign_rounded),     label: s.navNews),
+          NavigationDestination(icon: const Icon(Icons.storefront_outlined),   selectedIcon: const Icon(Icons.storefront_rounded),   label: s.navMarket),
           NavigationDestination(icon: const Icon(Icons.settings_outlined),     selectedIcon: const Icon(Icons.settings_rounded),     label: s.navSettings),
         ],
       ),

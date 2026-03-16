@@ -185,7 +185,12 @@ class _AnnouncementCardState extends State<_AnnouncementCard> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: GestureDetector(
-        onTap: () => setState(() => _expanded = !_expanded),
+        onTap: () {
+          if (!_expanded) {
+            context.read<AppProvider>().markAnnouncementRead(widget.ann.id);
+          }
+          setState(() => _expanded = !_expanded);
+        },
         child: Container(
           decoration: BoxDecoration(
             color: Theme.of(context).cardColor,

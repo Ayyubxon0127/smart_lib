@@ -10,6 +10,7 @@ import 'news_screen.dart';
 import 'settings_screen.dart';
 import 'home_screen.dart';
 import 'library_booking_screen.dart';
+import 'book_market_screen.dart';
 
 class StudentMain extends StatefulWidget {
   const StudentMain({super.key});
@@ -20,12 +21,10 @@ class StudentMain extends StatefulWidget {
 
 class _StudentMainState extends State<StudentMain> {
   int _index = 0;
-  DateTime _announcementsLastSeen = DateTime.fromMillisecondsSinceEpoch(0);
 
   void _goTo(int index) => setState(() => _index = index);
 
   void _openAnnouncements(BuildContext context) {
-    setState(() => _announcementsLastSeen = DateTime.now());
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const NewsScreen()),
@@ -78,8 +77,9 @@ class _StudentMainState extends State<StudentMain> {
     final app = context.watch<AppProvider>();
     final s = S.of(context);
 
+    final userId = app.currentUser?.id ?? '';
     final unreadAnnCount = app.announcements
-        .where((a) => a.date.isAfter(_announcementsLastSeen))
+        .where((a) => !a.readBy.contains(userId))
         .length;
 
     final screens = [
@@ -90,6 +90,7 @@ class _StudentMainState extends State<StudentMain> {
       ),
       const BooksScreen(),
       const LibraryBookingScreen(),
+      const BookMarketScreen(),
       const MyBooksScreen(),
       const SettingsScreen(),
     ];
@@ -112,6 +113,7 @@ class _StudentMainState extends State<StudentMain> {
           NavigationDestination(icon: const Icon(Icons.home_outlined),         selectedIcon: const Icon(Icons.home_rounded),         label: s.navHome),
           NavigationDestination(icon: const Icon(Icons.menu_book_outlined),    selectedIcon: const Icon(Icons.menu_book_rounded),    label: s.navBooks),
           NavigationDestination(icon: const Icon(Icons.meeting_room_outlined), selectedIcon: const Icon(Icons.meeting_room_rounded), label: s.navRooms),
+          NavigationDestination(icon: const Icon(Icons.storefront_outlined),   selectedIcon: const Icon(Icons.storefront_rounded),   label: s.navMarket),
           NavigationDestination(icon: const Icon(Icons.bookmark_outline),      selectedIcon: const Icon(Icons.bookmark_rounded),     label: s.navMine),
           NavigationDestination(icon: const Icon(Icons.settings_outlined),     selectedIcon: const Icon(Icons.settings_rounded),     label: s.navSettings),
         ],

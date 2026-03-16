@@ -792,7 +792,9 @@ class BookDetailPage extends StatefulWidget {
   final BookModel book;
   /// Optional: open directly on a specific tab. 0=Info, 1=Reviews, 2=Questions
   final int? initialTab;
-  const BookDetailPage({super.key, required this.book, this.initialTab});
+  /// Optional: id of a specific review/question to scroll to and highlight.
+  final String? highlightId;
+  const BookDetailPage({super.key, required this.book, this.initialTab, this.highlightId});
 
   @override
   State<BookDetailPage> createState() => _BookDetailPageState();
@@ -854,8 +856,8 @@ class _BookDetailPageState extends State<BookDetailPage>
         controller: _tabs,
         children: [
           _BookInfoTab(book: _book, onReserved: _refreshBook),
-          _ReviewsTab(book: _book, onReviewAdded: _refreshBook),
-          _QuestionsTab(book: _book),
+          _ReviewsTab(book: _book, onReviewAdded: _refreshBook, highlightId: widget.highlightId),
+          _QuestionsTab(book: _book, highlightId: widget.highlightId),
         ],
       ),
     );
@@ -1055,7 +1057,8 @@ class _MetaChip extends StatelessWidget {
 class _ReviewsTab extends StatefulWidget {
   final BookModel book;
   final VoidCallback onReviewAdded;
-  const _ReviewsTab({required this.book, required this.onReviewAdded});
+  final String? highlightId;
+  const _ReviewsTab({required this.book, required this.onReviewAdded, this.highlightId});
 
   @override
   State<_ReviewsTab> createState() => _ReviewsTabState();
@@ -1068,6 +1071,7 @@ class _ReviewsTabState extends State<_ReviewsTab> {
   int _selectedRating = 5;
   final _commentCtrl = TextEditingController();
   bool _submitting   = false;
+  final _highlightKey = GlobalKey();
 
   @override
   void initState() {
@@ -1093,6 +1097,15 @@ class _ReviewsTabState extends State<_ReviewsTab> {
         _alreadyReviewed = results[1] as bool;
         _hasReturned     = app.hasReturnedBook(widget.book.id);
       });
+      if (widget.highlightId != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final ctx = _highlightKey.currentContext;
+          if (ctx != null) {
+            Scrollable.ensureVisible(ctx,
+                duration: const Duration(milliseconds: 400), alignment: 0.2);
+          }
+        });
+      }
     }
   }
 
@@ -1150,12 +1163,16 @@ class _ReviewsTabState extends State<_ReviewsTab> {
             ),
           )
         else
-          ..._reviews!.map((r) => _ReviewCard(
-                key: ValueKey(r.id),
-                review: r,
-                bookId: widget.book.id,
-                onChanged: _load,
-              )),
+          ..._reviews!.map((r) {
+            final isHighlighted = r.id == widget.highlightId;
+            return _ReviewCard(
+              key: isHighlighted ? _highlightKey : ValueKey(r.id),
+              review: r,
+              bookId: widget.book.id,
+              onChanged: _load,
+              highlighted: isHighlighted,
+            );
+          }),
       ],
     );
   }
@@ -1237,11 +1254,13 @@ class _ReviewCard extends StatefulWidget {
   final ReviewModel review;
   final String bookId;
   final VoidCallback onChanged;
+  final bool highlighted;
   const _ReviewCard(
       {super.key,
       required this.review,
       required this.bookId,
-      required this.onChanged});
+      required this.onChanged,
+      this.highlighted = false});
 
   @override
   State<_ReviewCard> createState() => _ReviewCardState();
@@ -1306,6 +1325,7 @@ class _ReviewCardState extends State<_ReviewCard> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: AppCard(
+        borderColor: widget.highlighted ? AppColors.accent.withOpacity(0.6) : null,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1368,7 +1388,8 @@ class _ReviewCardState extends State<_ReviewCard> {
 
 class _QuestionsTab extends StatefulWidget {
   final BookModel book;
-  const _QuestionsTab({required this.book});
+  final String? highlightId;
+  const _QuestionsTab({required this.book, this.highlightId});
 
   @override
   State<_QuestionsTab> createState() => _QuestionsTabState();
@@ -1378,6 +1399,7 @@ class _QuestionsTabState extends State<_QuestionsTab> {
   List<QuestionModel>? _questions;
   final _questionCtrl = TextEditingController();
   bool _submitting    = false;
+  final _highlightKey = GlobalKey();
 
   @override
   void initState() {
@@ -1394,7 +1416,18 @@ class _QuestionsTabState extends State<_QuestionsTab> {
   Future<void> _load() async {
     final app = context.read<AppProvider>();
     final q   = await app.fetchQuestions(widget.book.id);
-    if (mounted) setState(() => _questions = q);
+    if (mounted) {
+      setState(() => _questions = q);
+      if (widget.highlightId != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final ctx = _highlightKey.currentContext;
+          if (ctx != null) {
+            Scrollable.ensureVisible(ctx,
+                duration: const Duration(milliseconds: 400), alignment: 0.2);
+          }
+        });
+      }
+    }
   }
 
   Future<void> _submit() async {
@@ -1458,12 +1491,16 @@ class _QuestionsTabState extends State<_QuestionsTab> {
                 style: const TextStyle(color: Colors.grey)),
           ))
         else
-          ..._questions!.map((q) => _QuestionCard(
-                key: ValueKey(q.id),
-                question: q,
-                bookId: widget.book.id,
-                onAnswered: _load,
-              )),
+          ..._questions!.map((q) {
+            final isHighlighted = q.id == widget.highlightId;
+            return _QuestionCard(
+              key: isHighlighted ? _highlightKey : ValueKey(q.id),
+              question: q,
+              bookId: widget.book.id,
+              onAnswered: _load,
+              highlighted: isHighlighted,
+            );
+          }),
       ],
     );
   }
@@ -1473,11 +1510,13 @@ class _QuestionCard extends StatefulWidget {
   final QuestionModel question;
   final String bookId;
   final VoidCallback onAnswered;
+  final bool highlighted;
   const _QuestionCard(
       {super.key,
       required this.question,
       required this.bookId,
-      required this.onAnswered});
+      required this.onAnswered,
+      this.highlighted = false});
 
   @override
   State<_QuestionCard> createState() => _QuestionCardState();
@@ -1629,9 +1668,12 @@ class _QuestionCardState extends State<_QuestionCard> {
           color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: q.isAnswered
-                ? AppColors.green.withOpacity(0.35)
-                : Theme.of(context).dividerColor.withOpacity(0.5),
+            color: widget.highlighted
+                ? AppColors.accent.withOpacity(0.6)
+                : q.isAnswered
+                    ? AppColors.green.withOpacity(0.35)
+                    : Theme.of(context).dividerColor.withOpacity(0.5),
+            width: widget.highlighted ? 1.5 : 1.0,
           ),
         ),
         child: Column(

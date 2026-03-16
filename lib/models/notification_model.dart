@@ -63,6 +63,8 @@ class NotificationItem {
   final String type;
   final String? targetScreen;
   final String? targetId;
+  /// Secondary target id — e.g. questionId/reviewId/bookingId within the primary target.
+  final String? targetId2;
   final DateTime createdAt;
   final bool isRead;
 
@@ -74,6 +76,7 @@ class NotificationItem {
     required this.type,
     this.targetScreen,
     this.targetId,
+    this.targetId2,
     required this.createdAt,
     this.isRead = false,
   });
@@ -88,6 +91,7 @@ class NotificationItem {
       type:         d['type']         as String? ?? '',
       targetScreen: d['targetScreen'] as String?,
       targetId:     d['targetId']     as String?,
+      targetId2:    d['targetId2']    as String?,
       createdAt:    (d['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       isRead:       d['isRead']       as bool? ?? false,
     );
@@ -100,6 +104,7 @@ class NotificationItem {
     'type':      type,
     if (targetScreen != null) 'targetScreen': targetScreen,
     if (targetId     != null) 'targetId':     targetId,
+    if (targetId2    != null) 'targetId2':    targetId2,
     'createdAt': FieldValue.serverTimestamp(),
     'isRead':    isRead,
   };
@@ -107,6 +112,6 @@ class NotificationItem {
   NotificationItem copyWith({bool? isRead}) => NotificationItem(
     id: id, userId: userId, title: title, message: message,
     type: type, targetScreen: targetScreen, targetId: targetId,
-    createdAt: createdAt, isRead: isRead ?? this.isRead,
+    targetId2: targetId2, createdAt: createdAt, isRead: isRead ?? this.isRead,
   );
 }

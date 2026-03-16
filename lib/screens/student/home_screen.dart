@@ -5,11 +5,14 @@ import '../../widgets/common_widgets.dart';
 import '../../constants.dart';
 import '../../l10n.dart';
 import 'notifications_screen.dart';
+import 'book_market_screen.dart' show showAddListingSheet;
+import '../../models/book_market_model.dart';
 
-// Indekslar: 0=Home 1=Books 2=Rooms 3=MyBooks 4=Settings
-const int _kBooksIndex = 1;
-const int _kRoomsIndex = 2;
-const int _kMineIndex  = 3;
+// Indekslar: 0=Home 1=Books 2=Rooms 3=Market 4=Mine 5=Settings
+const int _kBooksIndex  = 1;
+const int _kRoomsIndex  = 2;
+const int _kMarketIndex = 3;
+const int _kMineIndex   = 4;
 
 class StudentHomeScreen extends StatelessWidget {
   final void Function(int)? onNavigate;
@@ -27,9 +30,11 @@ class StudentHomeScreen extends StatelessWidget {
     final app        = context.watch<AppProvider>();
     final s          = S.of(context);
     final user       = app.currentUser;
-    final active     = app.reservations.where((r) => r.status == 'active').toList();
-    final recentAnn  = app.announcements.take(3).toList();
-    final recentBooks = app.books.take(10).toList();
+    final active        = app.reservations.where((r) => r.status == 'active').toList();
+    final recentAnn     = app.announcements.take(3).toList();
+    final recentBooks   = app.books.take(10).toList();
+    final marketItems   = app.marketItems.where((m) => m.isAvailable).take(5).toList();
+    final marketCount   = app.marketItems.where((m) => m.isAvailable).length;
 
     final notifCount = app.unreadCount + app.computeNotifications().length;
 
@@ -145,21 +150,28 @@ class StudentHomeScreen extends StatelessWidget {
                   color: AppColors.blue,
                   onTap: () => onNavigate?.call(_kBooksIndex),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 _QuickButton(
                   icon: Icons.meeting_room_rounded,
                   label: s.navRooms,
                   color: AppColors.green,
                   onTap: () => onNavigate?.call(_kRoomsIndex),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
+                _QuickButton(
+                  icon: Icons.storefront_rounded,
+                  label: s.navMarket,
+                  color: AppColors.teal,
+                  onTap: () => onNavigate?.call(_kMarketIndex),
+                ),
+                const SizedBox(width: 8),
                 _QuickButton(
                   icon: Icons.bookmark_rounded,
                   label: s.navMine,
                   color: AppColors.purple,
                   onTap: () => onNavigate?.call(_kMineIndex),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 _QuickButton(
                   icon: Icons.campaign_rounded,
                   label: s.navNews,
@@ -212,6 +224,96 @@ class StudentHomeScreen extends StatelessWidget {
               const SizedBox(height: 12),
             ],
 
+            // ── Kitob bozori ───────────────────────────────────────────
+            _SectionHeader(
+              label: s.bookMarketTitle,
+              icon: Icons.storefront_rounded,
+              onTap: () => onNavigate?.call(_kMarketIndex),
+            ),
+            if (marketItems.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: InkWell(
+                  onTap: () => onNavigate?.call(_kMarketIndex),
+                  borderRadius: BorderRadius.circular(14),
+                  child: AppCard(
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 40, height: 40,
+                          decoration: BoxDecoration(
+                            color: AppColors.teal.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.storefront_rounded,
+                              color: AppColors.teal, size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(s.noMarketItems,
+                              style: TextStyle(
+                                  fontSize: 13, color: Colors.grey.shade500)),
+                        ),
+                        const Icon(Icons.chevron_right_rounded,
+                            color: Colors.grey, size: 16),
+                      ],
+                    ),
+                  ),
+                ),
+              )
+            else
+              SizedBox(
+                height: 180,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.only(bottom: 4),
+                  itemCount: marketItems.length + 1,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (_, i) {
+                    if (i == marketItems.length) {
+                      return InkWell(
+                        onTap: () => onNavigate?.call(_kMarketIndex),
+                        borderRadius: BorderRadius.circular(12),
+                        child: SizedBox(
+                          width: 80,
+                          child: AppCard(
+                            padding: const EdgeInsets.all(8),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                  width: 32, height: 32,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.teal.withOpacity(0.15),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.arrow_forward_rounded,
+                                      color: AppColors.teal, size: 16),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Barchasi\n($marketCount)',
+                                  style: const TextStyle(
+                                      fontSize: 10, fontWeight: FontWeight.w700,
+                                      color: AppColors.teal),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+                    final m = marketItems[i];
+                    return _MarketItemCard(
+                      item: m,
+                      onTap: () => onNavigate?.call(_kMarketIndex),
+                    );
+                  },
+                ),
+              ),
+            const SizedBox(height: 8),
+
             // ── Yangi kitoblar ─────────────────────────────────────────
             _SectionHeader(
               label: s.newBooks,
@@ -224,70 +326,79 @@ class StudentHomeScreen extends StatelessWidget {
                 child: Text(s.loadingBooks, style: const TextStyle(color: Colors.grey)),
               )
             else
-              SizedBox(
-                height: 175,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: recentBooks.length + 1, // +1 = "barchasi" tugmasi
-                  separatorBuilder: (_, __) => const SizedBox(width: 10),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.04),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                padding: const EdgeInsets.all(10),
+                child: GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    childAspectRatio: 0.65,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                  ),
+                  itemCount: recentBooks.length + 1, // +1 = "barchasi" kartasi
                   itemBuilder: (_, i) {
                     // Oxirida "Barchasi →" kartasi
                     if (i == recentBooks.length) {
-                      return SizedBox(
-                        width: 80,
-                        child: InkWell(
-                          onTap: () => onNavigate?.call(_kBooksIndex),
-                          borderRadius: BorderRadius.circular(14),
-                          child: AppCard(
-                            padding: const EdgeInsets.all(10),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Container(
-                                  width: 36, height: 36,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.accent.withOpacity(0.12),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(Icons.arrow_forward_rounded,
-                                      color: AppColors.accent, size: 18),
+                      return InkWell(
+                        onTap: () => onNavigate?.call(_kBooksIndex),
+                        borderRadius: BorderRadius.circular(12),
+                        child: AppCard(
+                          padding: const EdgeInsets.all(8),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                width: 32, height: 32,
+                                decoration: BoxDecoration(
+                                  color: AppColors.accent.withOpacity(0.12),
+                                  shape: BoxShape.circle,
                                 ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Barchasi',
-                                  style: const TextStyle(
-                                      fontSize: 10, fontWeight: FontWeight.w700,
-                                      color: AppColors.accent),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
+                                child: const Icon(Icons.arrow_forward_rounded,
+                                    color: AppColors.accent, size: 16),
+                              ),
+                              const SizedBox(height: 6),
+                              const Text(
+                                'Barchasi',
+                                style: TextStyle(
+                                    fontSize: 10, fontWeight: FontWeight.w700,
+                                    color: AppColors.accent),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
                           ),
                         ),
                       );
                     }
                     final b = recentBooks[i];
-                    return SizedBox(
-                      width: 100,
-                      child: InkWell(
-                        onTap: () => onNavigate?.call(_kBooksIndex),
-                        borderRadius: BorderRadius.circular(14),
-                        child: AppCard(
-                          padding: const EdgeInsets.all(10),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Center(child: BookCover(
-                                  imageUrl: b.imageUrl, emoji: b.coverEmoji,
-                                  width: 50, height: 65)),
-                              const SizedBox(height: 6),
-                              Text(b.title,
-                                  style: const TextStyle(
-                                      fontSize: 10, fontWeight: FontWeight.w700),
-                                  maxLines: 2, overflow: TextOverflow.ellipsis),
-                            ],
-                          ),
+                    return InkWell(
+                      onTap: () => onNavigate?.call(_kBooksIndex),
+                      borderRadius: BorderRadius.circular(12),
+                      child: AppCard(
+                        padding: const EdgeInsets.all(7),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            BookCover(
+                              imageUrl: b.imageUrl, emoji: b.coverEmoji,
+                              width: 56, height: 72,
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              b.title,
+                              style: const TextStyle(
+                                  fontSize: 10, fontWeight: FontWeight.w700),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
                         ),
                       ),
                     );
@@ -439,6 +550,106 @@ class _QuickButton extends StatelessWidget {
       ),
     );
   }
+}
+
+// ── Market item kartasi (home screen) ─────────────────────────────────────────
+
+class _MarketItemCard extends StatelessWidget {
+  final dynamic item;
+  final VoidCallback onTap;
+  const _MarketItemCard({required this.item, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final Color typeColor = item.type == 'sell'
+        ? AppColors.green
+        : item.type == 'rent'
+            ? AppColors.blue
+            : AppColors.purple;
+    final String typeLabel = item.type == 'sell'
+        ? 'Sotiladi'
+        : item.type == 'rent'
+            ? 'Ijaraga'
+            : 'Bepul';
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: SizedBox(
+        width: 120,
+        child: AppCard(
+          padding: const EdgeInsets.all(8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: item.imageUrl != null && item.imageUrl!.isNotEmpty
+                    ? Image.network(
+                        item.imageUrl!,
+                        width: double.infinity,
+                        height: 80,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _placeholder(),
+                      )
+                    : _placeholder(),
+              ),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: typeColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  typeLabel,
+                  style: TextStyle(
+                      fontSize: 9, fontWeight: FontWeight.w700, color: typeColor),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                item.title,
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const Spacer(),
+              if (item.price != null && item.price! > 0)
+                Text(
+                  '${item.price!.toStringAsFixed(0)} so\'m',
+                  style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.accent),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                )
+              else
+                const Text(
+                  'Bepul',
+                  style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.purple),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _placeholder() => Container(
+        width: double.infinity,
+        height: 80,
+        decoration: BoxDecoration(
+          color: AppColors.teal.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Icon(Icons.storefront_rounded,
+            color: AppColors.teal, size: 28),
+      );
 }
 
 // ── Stat kartasi ───────────────────────────────────────────────────────────────
