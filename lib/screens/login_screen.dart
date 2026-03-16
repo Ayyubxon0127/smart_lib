@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 import 'register_screen.dart';
+import 'student/student_main.dart';
+import 'librarian/librarian_main.dart';
 import '../constants.dart';
 import '../widgets/common_widgets.dart';
 import '../l10n.dart';
@@ -88,10 +90,19 @@ class _LoginScreenState extends State<LoginScreen> {
 
     final app = context.read<AppProvider>();
     final ok  = await app.login(email, pass);
-    if (!ok && mounted) {
+    if (!mounted) return;
+    if (ok) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => app.role == 'librarian'
+              ? const LibrarianMain()
+              : const StudentMain(),
+        ),
+        (_) => false,
+      );
+    } else {
       final err = app.error ?? '';
       _showSnackBar(_friendlyError(err, s));
-      // email is preserved; clear password and highlight the relevant field
       if (err == 'invalid-email') {
         setState(() => _emailError = true);
         _emailFocus.requestFocus();

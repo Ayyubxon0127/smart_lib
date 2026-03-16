@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
+import 'student/student_main.dart';
 import '../constants.dart';
 import '../widgets/common_widgets.dart';
 import '../l10n.dart';
@@ -67,7 +68,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
       group:     _groupCtrl.text.trim(),
     );
 
-    if (!ok && mounted) {
+    if (!mounted) return;
+    if (ok) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const StudentMain()),
+        (_) => false,
+      );
+    } else {
       setState(() => _errorMsg = app.error ?? S.read(context).errorOccurred);
     }
   }
