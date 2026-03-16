@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../providers/app_provider.dart';
+import '../login_screen.dart';
 import '../../models/user_model.dart';
 import '../../widgets/common_widgets.dart';
 import '../../constants.dart';
@@ -1017,7 +1018,13 @@ class _LogoutButton extends StatelessWidget {
             ),
           );
           if (confirmed == true && context.mounted) {
-            context.read<AppProvider>().logout();
+            await context.read<AppProvider>().logout();
+            if (context.mounted) {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                (_) => false,
+              );
+            }
           }
         },
         icon: const Icon(Icons.logout_rounded, color: AppColors.red, size: 18),
