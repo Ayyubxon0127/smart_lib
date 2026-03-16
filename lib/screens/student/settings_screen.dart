@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../providers/app_provider.dart';
@@ -308,11 +309,20 @@ class _HelpPage extends StatelessWidget {
               icon: Icons.email_outlined,
               iconColor: AppColors.accent,
               title: s.emailSupport,
-              subtitle: 'support@smartlib.uz',
-              onTap: () {
-                Clipboard.setData(
-                    const ClipboardData(text: 'support@smartlib.uz'));
-                _showSnack(context, S.read(context).emailCopied, AppColors.green);
+              subtitle: 'ayyubxonashiraliyev757@gmail.com',
+              onTap: () async {
+                final uri = Uri.parse(
+                    'mailto:ayyubxonashiraliyev757@gmail.com?subject=SmartLib%20Support');
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri);
+                } else {
+                  Clipboard.setData(const ClipboardData(
+                      text: 'ayyubxonashiraliyev757@gmail.com'));
+                  if (context.mounted) {
+                    _showSnack(context, S.read(context).emailCopied,
+                        AppColors.green);
+                  }
+                }
               },
             ),
           ]),

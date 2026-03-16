@@ -4,6 +4,39 @@ import '../../providers/app_provider.dart';
 import '../../constants.dart';
 import '../../l10n.dart';
 
+const _kDefaultFaq = [
+  {
+    'question': 'Ilovadan qanday foydalanaman?',
+    'answer':
+        'Ilovada siz turli kitoblarni ko\'rishingiz, o\'qishingiz va saqlab qo\'yishingiz mumkin. Shuningdek "Kitob bozori" bo\'limida talabalar o\'z kitoblarini sotish, ijaraga berish yoki bepul ulashishlari mumkin.',
+  },
+  {
+    'question': 'Kitobni qanday yuklab olaman yoki o\'qiyman?',
+    'answer':
+        'Kitob sahifasiga kirib "O\'qish" yoki "Yuklab olish" tugmasini bosish orqali kitobni o\'qishingiz yoki qurilmangizga saqlashingiz mumkin.',
+  },
+  {
+    'question': 'Kitob bozoriga qanday e\'lon joylayman?',
+    'answer':
+        'Pastki menyudagi "Bozor" bo\'limiga kiring va "E\'lon qo\'shish" tugmasini bosing. Kitob nomi, muallif, narx va tavsifni kiritib e\'lon joylashingiz mumkin.',
+  },
+  {
+    'question': 'Kitobni ijaraga olish mumkinmi?',
+    'answer':
+        'Ha. Bozor bo\'limida "Ijara" filtrini tanlab ijaraga berilayotgan kitoblarni ko\'rishingiz mumkin.',
+  },
+  {
+    'question': 'Sotuvchi bilan qanday bog\'lanaman?',
+    'answer':
+        'Kitob sahifasida sotuvchining telefon raqami yoki aloqa tugmasi orqali bevosita bog\'lanishingiz mumkin.',
+  },
+  {
+    'question': 'Agar muammo bo\'lsa nima qilaman?',
+    'answer':
+        '"Qo\'llab-quvvatlash" bo\'limida berilgan email orqali biz bilan bog\'lanishingiz mumkin.',
+  },
+];
+
 class FaqScreen extends StatelessWidget {
   const FaqScreen({super.key});
 
@@ -11,7 +44,7 @@ class FaqScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final app   = context.watch<AppProvider>();
     final s     = S.of(context);
-    final items = app.faqItems;
+    final items = app.faqItems.isNotEmpty ? app.faqItems : _kDefaultFaq;
 
     return Scaffold(
       appBar: AppBar(title: Text(s.faqTitle)),
