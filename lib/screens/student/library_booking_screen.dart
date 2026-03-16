@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../providers/app_provider.dart';
 import '../../models/room_model.dart';
 import '../../widgets/common_widgets.dart';
@@ -108,7 +109,8 @@ class _BookRoomTabState extends State<_BookRoomTab> {
   List<_Slot> _slots = [];
   bool _loading = false;
   LibraryClosedDayModel? _closedDay;
-  Timer? _timer;
+  Timer? _clockTimer;
+  StreamSubscription<QuerySnapshot>? _occupancySub;
   int _duration = 1; // hours
 
   static bool _sameDay(DateTime a, DateTime b) =>
@@ -123,9 +125,9 @@ class _BookRoomTabState extends State<_BookRoomTab> {
     super.initState();
     final now = DateTime.now();
     _selectedDate = DateTime(now.year, now.month, now.day);
-    // Rebuild every 30 s so time-based statuses stay accurate
-    _timer = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (mounted) _loadSlots();
+    // Rebuild every 60 s so time-based slot statuses (started/finished) stay accurate
+    _clockTimer = Timer.periodic(const Duration(seconds: 60), (_) {
+      if (mounted) _rebuildSlotsFromCache();
     });
   }
 
@@ -135,15 +137,71 @@ class _BookRoomTabState extends State<_BookRoomTab> {
     final rooms = context.read<AppProvider>().rooms;
     if (_selectedRoomId == null && rooms.isNotEmpty) {
       _selectedRoomId = rooms.first.id;
-      _loadSlots();
+      _startOccupancyStream();
     }
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _clockTimer?.cancel();
+    _occupancySub?.cancel();
     super.dispose();
   }
+
+  // ── Real-time occupancy stream ───────────────────────────────────────────────
+
+  void _startOccupancyStream() {
+    _occupancySub?.cancel();
+    if (_selectedRoomId == null) return;
+    if (mounted) setState(() { _loading = true; _closedDay = null; _slots = []; });
+    _occupancySub = FirebaseFirestore.instance
+        .collection('seat_bookings')
+        .where('roomId', isEqualTo: _selectedRoomId!)
+        .snapshots()
+        .listen(_onOccupancySnapshot, onError: (_) {
+          if (mounted) setState(() => _loading = false);
+        });
+  }
+
+  void _onOccupancySnapshot(QuerySnapshot snap) {
+    if (!mounted) return;
+    final app = context.read<AppProvider>();
+    final closedDay = app.getClosedDay(_selectedDate);
+    if (closedDay != null) {
+      setState(() { _closedDay = closedDay; _slots = []; _loading = false; });
+      return;
+    }
+    final roomList = app.rooms.where((r) => r.id == _selectedRoomId);
+    if (roomList.isEmpty) { setState(() => _loading = false); return; }
+    final room = roomList.first;
+    const active = {'active', 'arrived', 'confirmed'};
+    final occupied = snap.docs
+        .map(SeatBookingModel.fromFirestore)
+        .where((b) => active.contains(b.status) && _sameDay(b.date, _selectedDate))
+        .toList();
+    _lastOccupied = occupied;
+    setState(() {
+      _closedDay = null;
+      _slots = _buildSlots(room, occupied, app.seatBookings, app.currentUser?.id ?? '');
+      _loading = false;
+    });
+  }
+
+  // Re-run slot computation using the last snapshot data (for clock-tick updates)
+  void _rebuildSlotsFromCache() {
+    // Trigger a stream re-listen by calling the snapshot handler
+    // simply force a setState so time-based statuses recalculate
+    if (!mounted || _selectedRoomId == null) return;
+    final app = context.read<AppProvider>();
+    final roomList = app.rooms.where((r) => r.id == _selectedRoomId);
+    if (roomList.isEmpty) return;
+    final room = roomList.first;
+    setState(() {
+      _slots = _buildSlots(room, _lastOccupied, app.seatBookings, app.currentUser?.id ?? '');
+    });
+  }
+
+  List<SeatBookingModel> _lastOccupied = [];
 
   // ── Slot computation ────────────────────────────────────────────────────────
 
@@ -218,47 +276,15 @@ class _BookRoomTabState extends State<_BookRoomTab> {
     return slots;
   }
 
-  // ── Data loading ────────────────────────────────────────────────────────────
-
-  Future<void> _loadSlots() async {
-    if (_selectedRoomId == null || !mounted) return;
-    final app = context.read<AppProvider>();
-
-    // Check if the whole library is closed on selected day
-    final closedDay = app.getClosedDay(_selectedDate);
-    if (closedDay != null) {
-      if (mounted) setState(() { _closedDay = closedDay; _slots = []; _loading = false; });
-      return;
-    }
-    if (mounted) setState(() => _closedDay = null);
-
-    final roomList = app.rooms.where((r) => r.id == _selectedRoomId!);
-    if (roomList.isEmpty) return;
-    final room = roomList.first;
-
-    setState(() => _loading = true);
-    try {
-      final occupied = await app.fetchOccupiedBookingsForRoomDate(
-          _selectedRoomId!, _selectedDate);
-      if (!mounted) return;
-      setState(() {
-        _slots   = _buildSlots(room, occupied, app.seatBookings,
-            app.currentUser?.id ?? '');
-        _loading = false;
-      });
-    } catch (_) {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
   void _selectDate(DateTime d) {
-    setState(() { _selectedDate = d; _slots = []; _closedDay = null; });
-    _loadSlots();
+    setState(() { _selectedDate = d; _slots = []; _lastOccupied = []; _closedDay = null; });
+    // Stream is already running for the room; re-process snapshot for new date
+    _startOccupancyStream();
   }
 
   void _selectRoom(String id) {
-    setState(() { _selectedRoomId = id; _slots = []; _closedDay = null; });
-    _loadSlots();
+    setState(() { _selectedRoomId = id; _slots = []; _lastOccupied = []; _closedDay = null; });
+    _startOccupancyStream();
   }
 
   // ── Booking / Cancel ────────────────────────────────────────────────────────
@@ -271,7 +297,6 @@ class _BookRoomTabState extends State<_BookRoomTab> {
           slot.startHour);
       if (!DateTime.now().isBefore(slotStart)) {
         _showSnack(S.of(context).slotStarted, AppColors.red);
-        await _loadSlots();
         return;
       }
     }
@@ -317,7 +342,7 @@ class _BookRoomTabState extends State<_BookRoomTab> {
       _showSnack(err, AppColors.red);
     } else {
       _showSnack(S.of(context).bookingSuccess, AppColors.green);
-      await _loadSlots();
+      // Stream auto-updates the slot counts; no manual reload needed
     }
   }
 
@@ -329,7 +354,7 @@ class _BookRoomTabState extends State<_BookRoomTab> {
       _showSnack(err, AppColors.red);
     } else {
       _showSnack(S.of(context).bookingCancelled, Colors.grey);
-      await _loadSlots();
+      // Stream auto-updates the slot counts; no manual reload needed
     }
   }
 
@@ -353,7 +378,7 @@ class _BookRoomTabState extends State<_BookRoomTab> {
     return RefreshIndicator(
       onRefresh: () async {
         await app.fetchRooms();
-        await _loadSlots();
+        _startOccupancyStream();
       },
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
@@ -914,8 +939,11 @@ class _SlotCardState extends State<_SlotCard> {
             ? null
             : () async {
                 setState(() => _busy = true);
-                await widget.onCancel();
-                if (mounted) setState(() => _busy = false);
+                try {
+                  await widget.onCancel();
+                } finally {
+                  if (mounted) setState(() => _busy = false);
+                }
               },
         icon: _busy
             ? const SizedBox(
@@ -941,8 +969,11 @@ class _SlotCardState extends State<_SlotCard> {
           ? null
           : () async {
               setState(() => _busy = true);
-              await widget.onBook();
-              if (mounted) setState(() => _busy = false);
+              try {
+                await widget.onBook();
+              } finally {
+                if (mounted) setState(() => _busy = false);
+              }
             },
       icon: _busy
           ? const SizedBox(

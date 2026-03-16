@@ -40,6 +40,7 @@ class AppProvider extends ChangeNotifier {
   List<LibraryClosedDayModel> _closedDays = [];
   List<NotificationItem>    _notifications  = [];
   StreamSubscription<QuerySnapshot>? _notifSub;
+  StreamSubscription<QuerySnapshot>? _seatBookingsSub;
   List<BookMarketItem>      _marketItems    = [];
 
   UserModel?              get currentUser   => _currentUser;
@@ -222,6 +223,9 @@ class AppProvider extends ChangeNotifier {
     await _notifSub?.cancel();
     _notifSub = null;
     _notifications = [];
+    await _seatBookingsSub?.cancel();
+    _seatBookingsSub = null;
+    _seatBookings = [];
     await _auth.signOut();
     _currentUser = null; _role = '';
     _books = []; _reservations = []; _announcements = []; _students = [];
@@ -234,7 +238,6 @@ class AppProvider extends ChangeNotifier {
       fetchReservations(),
       fetchAnnouncements(),
       fetchRooms(),
-      fetchSeatBookings(),
       fetchSocialLinks(),
       fetchFaqItems(),
       fetchFavorites(),
@@ -243,6 +246,7 @@ class AppProvider extends ChangeNotifier {
       if (_role == 'librarian') fetchStudents(),
     ]);
     _startNotifListener();
+    _startSeatBookingsStream();
     _initFcm();
     if (_role == 'student') {
       await _checkExpiredBookings();
@@ -998,10 +1002,25 @@ class AppProvider extends ChangeNotifier {
     Query q = _db.collection('seat_bookings');
     if (_role == 'student') q = q.where('studentId', isEqualTo: _currentUser!.id);
     // librarian/admin: barcha bronlarni oladi (arrived bronlarni tasdiqlash uchun)
-    final snap = await q.get();
-    _seatBookings = snap.docs.map(SeatBookingModel.fromFirestore).toList()
-      ..sort((a, b) => b.date.compareTo(a.date));
-    notifyListeners();
+    try {
+      final snap = await q.get();
+      _seatBookings = snap.docs.map(SeatBookingModel.fromFirestore).toList()
+        ..sort((a, b) => b.date.compareTo(a.date));
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  /// Real-time stream: avto yangilanadi — booking qo'shilsa/o'zgarsa/o'chirilsa
+  void _startSeatBookingsStream() {
+    _seatBookingsSub?.cancel();
+    if (_currentUser == null) return;
+    Query q = _db.collection('seat_bookings');
+    if (_role == 'student') q = q.where('studentId', isEqualTo: _currentUser!.id);
+    _seatBookingsSub = q.snapshots().listen((snap) {
+      _seatBookings = snap.docs.map(SeatBookingModel.fromFirestore).toList()
+        ..sort((a, b) => b.date.compareTo(a.date));
+      notifyListeners();
+    }, onError: (_) {});
   }
 
   /// 'arrived' statusidagi bronlar — librarian tasdiqlashi kerak
@@ -1105,9 +1124,16 @@ class AppProvider extends ChangeNotifier {
       roomId: roomId, roomName: roomName, date: date,
       startTime: startTime, endTime: endTime, createdAt: DateTime.now(),
     );
-    await ref.set(booking.toFirestore());
-    _seatBookings.insert(0, booking);
-    notifyListeners();
+    try {
+      await ref.set(booking.toFirestore());
+    } catch (e) {
+      return 'Bron saqlashda xatolik: $e';
+    }
+    // Stream will update _seatBookings automatically; insert locally for instant UI
+    if (!_seatBookings.any((b) => b.id == booking.id)) {
+      _seatBookings.insert(0, booking);
+      notifyListeners();
+    }
     return null;
   }
 
