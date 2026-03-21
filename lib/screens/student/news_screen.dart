@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/app_provider.dart';
 import '../../models/reservation_model.dart';
-import '../../widgets/common_widgets.dart';
 import '../../constants.dart';
 import '../../l10n.dart';
 
@@ -16,18 +15,11 @@ class NewsScreen extends StatefulWidget {
 class _NewsScreenState extends State<NewsScreen> {
   String _filter = 'all'; // all | info | new_books | reminder | important
 
-  static const _typeConfig = <String, (Color, IconData)>{
-    'new_books': (AppColors.green,  Icons.auto_stories_rounded),
-    'info':      (AppColors.blue,   Icons.info_outline_rounded),
-    'reminder':  (AppColors.accent, Icons.notifications_outlined),
-    'survey':    (AppColors.purple, Icons.poll_outlined),
-    'warning':   (AppColors.red,    Icons.warning_amber_rounded),
-  };
-
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppProvider>();
     final s   = S.of(context);
+    final userId = app.currentUser?.id ?? '';
 
     // Sort: important first, then newest
     final sorted = [...app.announcements]..sort((a, b) {
@@ -45,6 +37,8 @@ class _NewsScreenState extends State<NewsScreen> {
       return b.date.compareTo(a.date);
     });
 
+    final unreadCount = sorted.where((a) => !a.readBy.contains(userId)).length;
+
     final filtered = _filter == 'all'
         ? sorted
         : _filter == 'important'
@@ -52,7 +46,24 @@ class _NewsScreenState extends State<NewsScreen> {
             : sorted.where((a) => a.type == _filter).toList();
 
     return Scaffold(
-      appBar: AppBar(title: Text(s.announcements)),
+      appBar: AppBar(
+        title: Text(s.announcements),
+        actions: [
+          if (unreadCount > 0)
+            TextButton.icon(
+              onPressed: () async {
+                await context.read<AppProvider>().markAllAnnouncementsRead();
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(s.allAnnouncementsReadDone)),
+                );
+              },
+              icon: const Icon(Icons.done_all_rounded, size: 16),
+              label: Text(s.markAllAnnouncementsRead,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+            ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: () => app.fetchAnnouncements(),
         child: Column(
@@ -70,8 +81,10 @@ class _NewsScreenState extends State<NewsScreen> {
                   : ListView.builder(
                       padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
                       itemCount: filtered.length,
-                      itemBuilder: (_, i) =>
-                          _AnnouncementCard(ann: filtered[i]),
+                      itemBuilder: (_, i) => _AnnouncementCard(
+                        ann: filtered[i],
+                        isUnread: !filtered[i].readBy.contains(userId),
+                      ),
                     ),
             ),
           ],
@@ -155,7 +168,8 @@ class _FilterBar extends StatelessWidget {
 
 class _AnnouncementCard extends StatefulWidget {
   final AnnouncementModel ann;
-  const _AnnouncementCard({required this.ann});
+  final bool isUnread;
+  const _AnnouncementCard({required this.ann, required this.isUnread});
 
   @override
   State<_AnnouncementCard> createState() => _AnnouncementCardState();
@@ -180,23 +194,29 @@ class _AnnouncementCardState extends State<_AnnouncementCard> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final (typeColor, typeIcon) =
         _typeConfig[a.type] ?? (AppColors.blue, Icons.info_outline_rounded);
-    final borderColor = a.important ? AppColors.red : typeColor;
+    final unreadTint = AppColors.blue.withValues(alpha: isDark ? 0.16 : 0.08);
+    final cardColor = widget.isUnread
+        ? Color.alphaBlend(unreadTint, Theme.of(context).cardColor)
+        : Theme.of(context).cardColor;
+    final borderColor = widget.isUnread
+        ? AppColors.blue
+        : (a.important ? AppColors.red : typeColor);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: GestureDetector(
         onTap: () {
-          if (!_expanded) {
+          if (!_expanded && widget.isUnread) {
             context.read<AppProvider>().markAnnouncementRead(widget.ann.id);
           }
           setState(() => _expanded = !_expanded);
         },
         child: Container(
           decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
+            color: cardColor,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: borderColor.withOpacity(a.important ? 0.5 : 0.25),
+              color: borderColor.withOpacity(a.important ? 0.5 : 0.28),
             ),
           ),
           child: IntrinsicHeight(
@@ -224,88 +244,131 @@ class _AnnouncementCardState extends State<_AnnouncementCard> {
                       children: [
                         // Header row
                         Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Type badge
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: typeColor.withOpacity(0.12),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                    color: typeColor.withOpacity(0.3)),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
+                            Expanded(
+                              child: Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
                                 children: [
-                                  Icon(typeIcon,
-                                      size: 11, color: typeColor),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    _typeLabel(a.type, S.of(context)),
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w800,
-                                      color: typeColor,
+                                  // Type badge
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: typeColor.withOpacity(0.12),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                          color: typeColor.withOpacity(0.3)),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(typeIcon, size: 11, color: typeColor),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          _typeLabel(a.type, S.of(context)),
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w800,
+                                            color: typeColor,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
+                                  if (widget.isUnread)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 7, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color:
+                                            AppColors.blue.withValues(alpha: 0.14),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                            color: AppColors.blue
+                                                .withValues(alpha: 0.4)),
+                                      ),
+                                      child: Text(
+                                        S.of(context).newAnnouncementLabel,
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppColors.blue,
+                                        ),
+                                      ),
+                                    ),
+                                  if (a.pinned)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 7, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color:
+                                            AppColors.accent.withOpacity(0.12),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                            color: AppColors.accent
+                                                .withOpacity(0.35)),
+                                      ),
+                                      child: const Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.push_pin_rounded,
+                                              size: 10,
+                                              color: AppColors.accent),
+                                        ],
+                                      ),
+                                    ),
+                                  if (a.important)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 7, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.red.withOpacity(0.12),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                            color:
+                                                AppColors.red.withOpacity(0.4)),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(
+                                              Icons.warning_amber_rounded,
+                                              size: 10,
+                                              color: AppColors.red),
+                                          const SizedBox(width: 3),
+                                          Text(
+                                            S.of(context)
+                                                .important
+                                                .replaceAll('⚠️ ', ''),
+                                            style: const TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w800,
+                                              color: AppColors.red,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                                 ],
                               ),
                             ),
-                            if (a.pinned) ...[
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 7, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: AppColors.accent.withOpacity(0.12),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                      color: AppColors.accent.withOpacity(0.35)),
-                                ),
-                                child: const Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.push_pin_rounded,
-                                        size: 10, color: AppColors.accent),
-                                  ],
+                            const SizedBox(width: 8),
+                            SizedBox(
+                              width: 74,
+                              child: Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Text(
+                                  _formatDate(a.date, context),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.right,
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey.shade500),
                                 ),
                               ),
-                            ],
-                            if (a.important) ...[
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 7, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: AppColors.red.withOpacity(0.12),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                      color: AppColors.red.withOpacity(0.4)),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(Icons.warning_amber_rounded,
-                                        size: 10, color: AppColors.red),
-                                    const SizedBox(width: 3),
-                                    Text(
-                                      S.of(context).important.replaceAll('⚠️ ', ''),
-                                      style: const TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w800,
-                                        color: AppColors.red,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                            const Spacer(),
-                            Text(
-                              _formatDate(a.date, context),
-                              style: TextStyle(
-                                  fontSize: 10, color: Colors.grey.shade500),
                             ),
                           ],
                         ),

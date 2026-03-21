@@ -25,12 +25,10 @@ class NotificationsScreen extends StatelessWidget {
         title: Text(s.notifications),
         actions: [
           if (app.unreadCount > 0)
-            TextButton(
+            IconButton(
               onPressed: app.markAllAsRead,
-              child: Text(
-                'Barchasini o\'qildi',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-              ),
+              tooltip: s.markAllAsRead,
+              icon: const Icon(Icons.done_all_rounded),
             ),
         ],
       ),
@@ -97,6 +95,7 @@ class _FirestoreNotifCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (icon, color) = _iconAndColor(item.type);
+    final unreadBg = AppColors.blue.withValues(alpha: 0.08);
     return GestureDetector(
       onTap: () {
         if (!item.isRead) context.read<AppProvider>().markAsRead(item.id);
@@ -104,7 +103,10 @@ class _FirestoreNotifCard extends StatelessWidget {
       },
       child: AppCard(
         padding: const EdgeInsets.all(14),
-        borderColor: item.isRead ? null : color.withOpacity(0.4),
+        borderColor: item.isRead ? null : AppColors.blue.withValues(alpha: 0.45),
+        backgroundColor: item.isRead
+            ? null
+            : Color.alphaBlend(unreadBg, Theme.of(context).cardColor),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

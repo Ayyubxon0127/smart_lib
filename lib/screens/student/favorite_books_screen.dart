@@ -6,6 +6,7 @@ import '../../widgets/common_widgets.dart';
 import '../../constants.dart';
 import '../../l10n.dart';
 import 'books_screen.dart';
+import 'book_detail_page.dart';
 
 class FavoriteBooksScreen extends StatelessWidget {
   const FavoriteBooksScreen({super.key});

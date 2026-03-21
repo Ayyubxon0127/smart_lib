@@ -56,7 +56,11 @@ class _VisitorAnalyticsPageState extends State<VisitorAnalyticsPage> {
   Future<void> _loadDaily() async {
     setState(() => _loading = true);
     final data = await context.read<AppProvider>().fetchDailyVisitors(days: 30);
-    if (mounted) setState(() { _daily = data; _loading = false; });
+    final mapped = <String, int>{
+      for (final item in data)
+        (item['date'] as String): (item['count'] as int? ?? 0),
+    };
+    if (mounted) setState(() { _daily = mapped; _loading = false; });
   }
 
   Future<void> _loadHourly(String dayKey) async {
@@ -65,7 +69,11 @@ class _VisitorAnalyticsPageState extends State<VisitorAnalyticsPage> {
         int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
     setState(() { _selectedDay = dayKey; _loading = true; });
     final data = await context.read<AppProvider>().fetchHourlyVisitors(date);
-    if (mounted) setState(() { _hourly = data; _loading = false; });
+    final mapped = <int, int>{
+      for (final item in data)
+        (item['hour'] as int): (item['count'] as int? ?? 0),
+    };
+    if (mounted) setState(() { _hourly = mapped; _loading = false; });
   }
 
   @override

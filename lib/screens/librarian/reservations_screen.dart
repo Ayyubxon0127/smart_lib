@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/app_provider.dart';
-import '../../models/book_model.dart';
 import '../../models/reservation_model.dart';
 import '../../widgets/common_widgets.dart';
 import '../../constants.dart';
@@ -12,7 +11,7 @@ import '../../l10n.dart';
 class LibReservationsScreen extends StatefulWidget {
   /// Optional: pre-select a filter on open (e.g. 'return_requested').
   final String? initialFilter;
-  const LibReservationsScreen({this.initialFilter});
+  const LibReservationsScreen({super.key, this.initialFilter});
 
   @override
   State<LibReservationsScreen> createState() => _LibReservationsScreenState();
@@ -31,9 +30,22 @@ class _LibReservationsScreenState extends State<LibReservationsScreen> {
   }
 
   @override
+  void didUpdateWidget(covariant LibReservationsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialFilter != null && widget.initialFilter != oldWidget.initialFilter) {
+      setState(() {
+        _filter = widget.initialFilter!;
+        _page = 1;
+        _search = '';
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final app  = context.watch<AppProvider>();
     final s    = S.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final now  = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
@@ -178,7 +190,7 @@ class _LibReservationsScreenState extends State<LibReservationsScreen> {
                                 horizontal: 5, vertical: 1),
                             decoration: BoxDecoration(
                               color: isActive
-                                  ? Colors.white.withOpacity(0.3)
+                                  ? (isDark ? Colors.white.withOpacity(0.3) : Colors.black.withOpacity(0.12))
                                   : f.$3.withOpacity(0.15),
                               borderRadius: BorderRadius.circular(8),
                             ),
@@ -263,7 +275,6 @@ class _ReservationGroupedListState extends State<_ReservationGroupedList> {
 
   @override
   Widget build(BuildContext context) {
-    final s = S.of(context);
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -376,7 +387,9 @@ class _PastReservationTile extends StatelessWidget {
                 children: [
                   Text(reservation.studentName,
                       style: const TextStyle(
-                          fontSize: 12, fontWeight: FontWeight.w600)),
+                          fontSize: 12, fontWeight: FontWeight.w600),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
                   Text(bookTitle,
                       style: TextStyle(
                           fontSize: 11, color: Colors.grey.shade500),
@@ -474,7 +487,9 @@ class _ReservationTileState extends State<_ReservationTile> {
                             child: Text(res.studentName,
                                 style: const TextStyle(
                                     fontSize: 14,
-                                    fontWeight: FontWeight.w800)),
+                                    fontWeight: FontWeight.w800),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis),
                           ),
                         ],
                       ),
@@ -484,7 +499,8 @@ class _ReservationTileState extends State<_ReservationTile> {
                               fontSize: 12,
                               color: Colors.grey.shade600,
                               fontWeight: FontWeight.w600),
-                          maxLines: 2),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis),
                     ],
                   ),
                 ),

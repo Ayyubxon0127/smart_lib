@@ -16,6 +16,9 @@ class UserModel {
   final String status; // 'active' | 'restricted'
   final int visits;
   final int booksRead;
+  final int coins;
+  final int level;
+  final int studyMinutes;
   final DateTime createdAt;
   final int noShowCount;
   final DateTime? bookingBanUntil;
@@ -36,6 +39,9 @@ class UserModel {
     this.status = 'active',
     this.visits = 0,
     this.booksRead = 0,
+    this.coins = 0,
+    this.level = 1,
+    this.studyMinutes = 0,
     required this.createdAt,
     this.noShowCount = 0,
     this.bookingBanUntil,
@@ -59,6 +65,9 @@ class UserModel {
       status: d['status'] ?? 'active',
       visits: d['visits'] ?? 0,
       booksRead: d['booksRead'] ?? 0,
+      coins: d['coins'] ?? 0,
+      level: d['level'] ?? 1,
+      studyMinutes: d['studyMinutes'] ?? 0,
       createdAt: (d['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       noShowCount: d['noShowCount'] ?? 0,
       bookingBanUntil: (d['bookingBanUntil'] as Timestamp?)?.toDate(),
@@ -80,6 +89,9 @@ class UserModel {
     'status': status,
     'visits': visits,
     'booksRead': booksRead,
+    'coins': coins,
+    'level': level,
+    'studyMinutes': studyMinutes,
     'createdAt': Timestamp.fromDate(createdAt),
     'noShowCount': noShowCount,
     if (bookingBanUntil != null) 'bookingBanUntil': Timestamp.fromDate(bookingBanUntil!),
@@ -88,7 +100,8 @@ class UserModel {
   UserModel copyWith({
     String? name, String? phone, String? group, String? faculty,
     String? direction, String? degree, String? bio, String? avatar,
-    String? photoUrl, String? status, int? noShowCount, DateTime? bookingBanUntil,
+    String? photoUrl, String? status, int? visits, int? booksRead,
+    int? coins, int? level, int? studyMinutes, int? noShowCount, DateTime? bookingBanUntil,
   }) => UserModel(
     id: id, email: email, role: role, createdAt: createdAt,
     name: name ?? this.name,
@@ -101,8 +114,11 @@ class UserModel {
     avatar: avatar ?? this.avatar,
     photoUrl: photoUrl ?? this.photoUrl,
     status: status ?? this.status,
-    visits: visits,
-    booksRead: booksRead,
+    visits: visits ?? this.visits,
+    booksRead: booksRead ?? this.booksRead,
+    coins: coins ?? this.coins,
+    level: level ?? this.level,
+    studyMinutes: studyMinutes ?? this.studyMinutes,
     noShowCount: noShowCount ?? this.noShowCount,
     bookingBanUntil: bookingBanUntil ?? this.bookingBanUntil,
   );

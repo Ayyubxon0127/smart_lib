@@ -14,8 +14,10 @@ class NotificationService {
   static bool _initialized = false;
 
   /// Called by FcmService to wire local-notification tap → navigation.
-  static void Function(String? screen, String? id)? _onTap;
-  static void setOnTap(void Function(String? screen, String? id) fn) => _onTap = fn;
+  static void Function(String? screen, String? id, [String? id2])? _onTap;
+  static void setOnTap(
+    void Function(String? screen, String? id, [String? id2]) fn,
+  ) => _onTap = fn;
 
   static Future<void> init() async {
     if (_initialized) return;
@@ -66,6 +68,7 @@ class NotificationService {
       _onTap?.call(
         data['targetScreen'] as String?,
         data['targetId'] as String?,
+        data['targetId2'] as String?,
       );
     } catch (_) {}
   }
@@ -103,6 +106,7 @@ class NotificationService {
     final payload = jsonEncode({
       'targetScreen': message.data['targetScreen'],
       'targetId':     message.data['targetId'],
+      'targetId2':    message.data['targetId2'],
     });
 
     // Use a hash of the notification ID to avoid int overflow

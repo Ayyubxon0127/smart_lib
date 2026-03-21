@@ -6,6 +6,7 @@ import '../../widgets/common_widgets.dart';
 import '../../constants.dart';
 import '../../l10n.dart';
 import 'books_screen.dart';
+import 'book_detail_page.dart';
 
 class ReadingHistoryScreen extends StatelessWidget {
   const ReadingHistoryScreen({super.key});
@@ -143,7 +144,6 @@ class _HistoryBookCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppProvider>();
-    final s   = S.of(context);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),

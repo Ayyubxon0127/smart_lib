@@ -8,6 +8,7 @@ import '../../l10n.dart';
 import '../student/notifications_screen.dart';
 import 'students_screen.dart';
 import 'visitor_analytics_page.dart';
+import 'student_questions_page.dart';
 
 // ─── Navigation index constants ───────────────────────────────────────────────
 const int kLibBooksIndex  = 1;
@@ -16,11 +17,25 @@ const int kLibRoomsIndex  = 3;
 const int kLibNewsIndex   = 4;
 const int kLibMarketIndex = 5;
 
+class LibDashboardNavIntent {
+  final int index;
+  final String? reservationFilter;
+
+  const LibDashboardNavIntent({
+    required this.index,
+    this.reservationFilter,
+  });
+}
+
 // ─── Dashboard Screen ─────────────────────────────────────────────────────────
 
 class LibDashboardScreen extends StatelessWidget {
-  final void Function(int)? onNavigate;
+  final void Function(LibDashboardNavIntent)? onNavigate;
   const LibDashboardScreen({super.key, this.onNavigate});
+
+  void _go(int index, {String? reservationFilter}) {
+    onNavigate?.call(LibDashboardNavIntent(index: index, reservationFilter: reservationFilter));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -75,35 +90,35 @@ class LibDashboardScreen extends StatelessWidget {
                   icon: Icons.menu_book_rounded,
                   label: s.navBooks,
                   color: AppColors.blue,
-                  onTap: () => onNavigate?.call(kLibBooksIndex),
+                  onTap: () => _go(kLibBooksIndex),
                 ),
                 const SizedBox(width: 8),
                 _QuickTile(
                   icon: Icons.bookmark_rounded,
                   label: s.navReservations,
                   color: AppColors.green,
-                  onTap: () => onNavigate?.call(kLibResIndex),
+                  onTap: () => _go(kLibResIndex, reservationFilter: 'all'),
                 ),
                 const SizedBox(width: 8),
                 _QuickTile(
                   icon: Icons.meeting_room_rounded,
                   label: s.navRooms,
                   color: AppColors.purple,
-                  onTap: () => onNavigate?.call(kLibRoomsIndex),
+                  onTap: () => _go(kLibRoomsIndex),
                 ),
                 const SizedBox(width: 8),
                 _QuickTile(
                   icon: Icons.campaign_rounded,
                   label: s.navNews,
                   color: AppColors.orange,
-                  onTap: () => onNavigate?.call(kLibNewsIndex),
+                  onTap: () => _go(kLibNewsIndex),
                 ),
                 const SizedBox(width: 8),
                 _QuickTile(
                   icon: Icons.storefront_rounded,
                   label: s.navMarket,
                   color: AppColors.teal,
-                  onTap: () => onNavigate?.call(kLibMarketIndex),
+                  onTap: () => _go(kLibMarketIndex),
                 ),
               ],
             ),
@@ -115,7 +130,7 @@ class LibDashboardScreen extends StatelessWidget {
                 color: AppColors.blue,
                 label: s.totalBooks,
                 value: '${app.books.length}',
-                onTap: () => onNavigate?.call(kLibBooksIndex),
+                onTap: () => _go(kLibBooksIndex),
               )),
               const SizedBox(width: 10),
               Expanded(child: _StatCard(
@@ -132,7 +147,7 @@ class LibDashboardScreen extends StatelessWidget {
                 color: AppColors.teal,
                 label: s.navMarket,
                 value: '$marketActive',
-                onTap: () => onNavigate?.call(kLibMarketIndex),
+                onTap: () => _go(kLibMarketIndex),
               )),
             ]),
             const SizedBox(height: 10),
@@ -143,7 +158,7 @@ class LibDashboardScreen extends StatelessWidget {
                 color: AppColors.green,
                 label: s.activeReservations,
                 value: '$active',
-                onTap: () => onNavigate?.call(kLibResIndex),
+                onTap: () => _go(kLibResIndex, reservationFilter: 'active'),
               )),
               const SizedBox(width: 10),
               Expanded(child: _StatCard(
@@ -151,7 +166,7 @@ class LibDashboardScreen extends StatelessWidget {
                 color: AppColors.orange,
                 label: s.statusPendingConfirm,
                 value: '$pending',
-                onTap: () => onNavigate?.call(kLibResIndex),
+                onTap: () => _go(kLibResIndex, reservationFilter: 'pending_confirm'),
               )),
               const SizedBox(width: 10),
               Expanded(child: _StatCard(
@@ -159,14 +174,14 @@ class LibDashboardScreen extends StatelessWidget {
                 color: AppColors.red,
                 label: s.lang == 'uz' ? "Muddati o'tgan" : s.lang == 'en' ? 'Overdue' : 'Просрочено',
                 value: '$overdue',
-                onTap: () => onNavigate?.call(kLibResIndex),
+                onTap: () => _go(kLibResIndex, reservationFilter: 'active'),
               )),
             ]),
             const SizedBox(height: 14),
 
             if (overdue > 0) ...[
               InkWell(
-                onTap: () => onNavigate?.call(kLibResIndex),
+                onTap: () => _go(kLibResIndex, reservationFilter: 'active'),
                 borderRadius: BorderRadius.circular(14),
                 child: AppCard(
                   borderColor: AppColors.red.withOpacity(0.5),
@@ -187,7 +202,7 @@ class LibDashboardScreen extends StatelessWidget {
             ],
             if (returnReq > 0) ...[
               InkWell(
-                onTap: () => onNavigate?.call(kLibResIndex),
+                onTap: () => _go(kLibResIndex, reservationFilter: 'return_requested'),
                 borderRadius: BorderRadius.circular(14),
                 child: AppCard(
                   borderColor: AppColors.blue.withOpacity(0.5),
@@ -209,7 +224,7 @@ class LibDashboardScreen extends StatelessWidget {
 
             if (arrivedCount > 0) ...[
               InkWell(
-                onTap: () => onNavigate?.call(kLibRoomsIndex),
+                onTap: () => _go(kLibRoomsIndex, reservationFilter: 'active'),
                 borderRadius: BorderRadius.circular(14),
                 child: AppCard(
                   borderColor: AppColors.green.withOpacity(0.5),
@@ -231,44 +246,60 @@ class LibDashboardScreen extends StatelessWidget {
               const SizedBox(height: 8),
             ],
 
-            InkWell(
-              onTap: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const VisitorAnalyticsPage())),
-              borderRadius: BorderRadius.circular(14),
-              child: AppCard(
-                borderColor: AppColors.teal.withOpacity(0.4),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 38, height: 38,
-                      decoration: BoxDecoration(
-                        color: AppColors.teal.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(10),
+            Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: () => Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => const VisitorAnalyticsPage())),
+                    borderRadius: BorderRadius.circular(14),
+                    child: AppCard(
+                      borderColor: AppColors.teal.withOpacity(0.4),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 36, height: 36,
+                            decoration: BoxDecoration(
+                              color: AppColors.teal.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(Icons.bar_chart_rounded,
+                                size: 18, color: AppColors.teal),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(s.visitorAnalytics,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700, fontSize: 13),
+                                maxLines: 2),
+                          ),
+                          const Icon(Icons.chevron_right_rounded,
+                              color: AppColors.teal, size: 18),
+                        ],
                       ),
-                      child: const Icon(Icons.bar_chart_rounded,
-                          size: 20, color: AppColors.teal),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(s.visitorAnalytics,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w700, fontSize: 14)),
-                    ),
-                    const Icon(Icons.chevron_right_rounded,
-                        color: AppColors.teal, size: 20),
-                  ],
+                  ),
                 ),
-              ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _StudentQuestionsCard(
+                    unansweredCount: 0, // will show badge from page itself
+                    onTap: () => Navigator.push(context,
+                        MaterialPageRoute(
+                            builder: (_) => const StudentQuestionsPage())),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 14),
 
             _LibSectionHeader(
               label: s.recentReservations,
               icon: Icons.history_outlined,
-              onTap: () => onNavigate?.call(kLibResIndex),
+              onTap: () => _go(kLibResIndex),
             ),
             ...app.reservations.take(5).map((r) => InkWell(
-              onTap: () => onNavigate?.call(kLibResIndex),
+              onTap: () => _go(kLibResIndex),
               borderRadius: BorderRadius.circular(14),
               child: _MiniReservationTile(reservation: r),
             )),
@@ -450,8 +481,16 @@ class _LibrarianGreetingCard extends StatelessWidget {
               border: Border.all(color: AppColors.accent.withOpacity(0.4), width: 2),
             ),
             alignment: Alignment.center,
-            child: Text(app.currentUser?.avatar ?? '👤',
-                style: const TextStyle(fontSize: 26)),
+              child: CircleAvatar(
+              radius: 24,
+              backgroundColor: AppColors.accent.withOpacity(0.15),
+              backgroundImage: (app.currentUser?.photoUrl != null && app.currentUser!.photoUrl!.trim().isNotEmpty)
+                  ? NetworkImage(app.currentUser!.photoUrl!.trim())
+                  : null,
+              child: (app.currentUser?.photoUrl != null && app.currentUser!.photoUrl!.trim().isNotEmpty)
+                  ? null
+                  : Text(app.currentUser?.avatar ?? '👤', style: const TextStyle(fontSize: 24)),
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -459,7 +498,9 @@ class _LibrarianGreetingCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(s.greeting(app.currentUser?.name ?? ''),
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis),
                 const SizedBox(height: 2),
                 Text(app.currentUser?.email ?? '',
                     style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
@@ -469,6 +510,44 @@ class _LibrarianGreetingCard extends StatelessWidget {
           ),
           StatusBadge(label: s.librarian, color: AppColors.accent),
         ],
+      ),
+    );
+  }
+}
+
+class _StudentQuestionsCard extends StatelessWidget {
+  final int unansweredCount;
+  final VoidCallback onTap;
+  const _StudentQuestionsCard({required this.unansweredCount, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: AppCard(
+        borderColor: AppColors.purple.withOpacity(0.4),
+        child: Row(
+          children: [
+            Container(
+              width: 36, height: 36,
+              decoration: BoxDecoration(
+                color: AppColors.purple.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.help_outline_rounded,
+                  size: 18, color: AppColors.purple),
+            ),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Text('Talaba savollari',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                  maxLines: 2),
+            ),
+            const Icon(Icons.chevron_right_rounded,
+                color: AppColors.purple, size: 18),
+          ],
+        ),
       ),
     );
   }
@@ -512,10 +591,13 @@ class _MiniReservationTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(reservation.studentName,
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
                   Text(bookTitle,
                       style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-                      maxLines: 1),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
                 ],
               ),
             ),

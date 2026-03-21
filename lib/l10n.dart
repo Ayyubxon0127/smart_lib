@@ -52,6 +52,7 @@ class S {
   String get notAvailable => _t('Mavjud emas', 'Not available', 'Недоступно');
   String get reserveSuccess => _t('Bron qilindi! Kutubxonachi tasdiqlashini kuting.', 'Reserved! Wait for librarian confirmation.', 'Забронировано! Ждите подтверждения библиотекаря.');
   String get reserveSuccessFull => _t('✅ Bron qilindi! Kutubxonachi tasdiqlashini kuting.', '✅ Reserved! Wait for librarian confirmation.', '✅ Забронировано! Ждите подтверждения.');
+  String get statusReservedActive => _t('Bron qilingan', 'Reserved', 'Забронировано');
 
   // My books screen
   String get myBooks => _t('Mening kitoblarim', 'My books', 'Мои книги');
@@ -70,6 +71,9 @@ class S {
   // News screen
   String get announcements => _t("E'lonlar", 'Announcements', 'Объявления');
   String get noAnnouncementsYet => _t("Hali e'lon yo'q", 'No announcements yet', 'Объявлений пока нет');
+  String get markAllAnnouncementsRead => _t("Hammasini o'qish", 'Mark all as read', 'Отметить всё прочитанным');
+  String get allAnnouncementsReadDone => _t("Barcha e'lonlar o'qildi", 'All announcements marked as read', 'Все объявления отмечены как прочитанные');
+  String get newAnnouncementLabel => _t('Yangi', 'New', 'Новое');
   String get typeNewBooks => _t('Yangi kitob', 'New book', 'Новая книга');
   String get typeInfo => _t("Ma'lumot", 'Info', 'Информация');
   String get typeReminder => _t('Eslatma', 'Reminder', 'Напоминание');
@@ -250,11 +254,26 @@ class S {
   String get unanswered     => _t('Javobsiz', 'Unanswered', 'Без ответа');
   String get bookInfo       => _t('Kitob', 'Book', 'Книга');
   String get yourComment    => _t('Izohingiz (ixtiyoriy)...', 'Your comment (optional)...', 'Ваш комментарий (необязательно)...');
-  String get yourQuestion   => _t('Savolingizni yozing...', 'Write your question...', 'Напишите ваш вопрос...');
+  String get yourQuestion   => _t('Kitob haqida savol bering...\nMasalan: Bu kitob qaysi tilda?', 'Ask a question about the book...\nE.g.: What language is this book in?', 'Задайте вопрос о книге...\nНапример: На каком языке эта книга?');
   String get yourAnswer     => _t('Javobingizni yozing...', 'Write your answer...', 'Напишите ваш ответ...');
+
+  // Questions features
+  String answerCount(int n) => _t('💬 $n ta javob', '💬 $n answers', '💬 $n ответов');
+  String get noAnswers => _t('❓ Javobsiz', '❓ Unanswered', '❓ Без ответов');
+  String get bestAnswer => _t('⭐ Eng yaxshi javob', '⭐ Best answer', '⭐ Лучший ответ');
+  String helpfulCount(int n) => _t('👍 $n foydali', '👍 $n helpful', '👍 $n полезный');
+  String get markHelpful => _t('👍 Foydali', '👍 Helpful', '👍 Полезный');
+  String get markHelpfulDone => _t('✓ Foydali', '✓ Helpful', '✓ Полезный');
+  String get markBestAnswer => _t('⭐ Eng yaxshi sifatida belgilash', '⭐ Mark as best answer', '⭐ Отметить как лучший');
+  String get sortBy => _t('Tartiblash:', 'Sort by:', 'Сортировать по:');
+  String get sortNewest => _t('Eng yangi', 'Newest', 'Новые');
+  String get sortMostAnswers => _t('Ko\'p javob', 'Most answers', 'Больше ответов');
+  String get sortMostHelpful => _t('Eng foydali', 'Most helpful', 'Наиболее полезные');
+
   String reviewCount(int n) => _t('$n ta sharh', '$n reviews', '$n отзывов');
   String get notifications   => _t('Bildirishnomalar', 'Notifications', 'Уведомления');
   String get noNotifications => _t('Bildirishnomalar yo\'q', 'No notifications', 'Нет уведомлений');
+  String get markAllAsRead   => _t("Hammasini o'qish", 'Mark all as read', 'Отметить всё прочитанным');
   String viewsCount(int n) => _t('$n marta ko\'rilgan', '$n views', '$n просмотров');
   String get borrowedBy => _t('Kim olgan', 'Borrowed by', 'Взял(а)');
   String get studentDetails => _t('Talaba ma\'lumotlari', 'Student details', 'Данные студента');
@@ -281,7 +300,7 @@ class S {
   // Fixed time slots
   String get selectDuration  => _t('Davomiylik tanlang', 'Select duration', 'Выберите длительность');
   String get selectSlot      => _t('Vaqt tanlang', 'Select time', 'Выберите время');
-  String hour(int n)         => _t('${n} soat', '${n} hour${n > 1 ? "s" : ""}', '${n} ч.');
+  String hour(int n)         => _t('$n soat', '$n hour${n > 1 ? "s" : ""}', '$n ч.');
   String get slotAuto        => _t('Vaqt avtomatik hisoblanadi', 'Time auto-calculated', 'Время подсчитывается');
 
   // Booking actions
@@ -303,7 +322,6 @@ class S {
   // Settings – new sections
   String get systemTheme        => _t('Tizim temasidan foydalanish', 'Use system theme', 'Тема системы');
   String get systemThemeSub     => _t('Qurilma sozlamasiga qarab', 'Follow device setting', 'По настройкам устройства');
-  String get libraryPrefs       => _t('Kutubxona sozlamalari', 'Library preferences', 'Настройки библиотеки');
   String get favoriteBooks      => _t('Sevimli kitoblar', 'Favorite books', 'Любимые книги');
   String get readingHistory     => _t("O'qish tarixi", 'Reading history', 'История чтения');
   String get recommendedBooks   => _t('Tavsiya etilgan kitoblar', 'Recommended books', 'Рекомендованные книги');
@@ -364,7 +382,7 @@ class S {
   String get bookThisSlot       => _t('Bu slotni bron qilish', 'Book this slot', 'Забронировать слот');
   String get noBookingsYet      => _t("Bronlar yo'q", 'No bookings yet', 'Нет броней');
   String get upcomingBookings   => _t('Kelayotgan bronlar', 'Upcoming bookings', 'Предстоящие брони');
-  String get pastBookings       => _t("O'tgan bronlar", 'Past bookings', 'Прошедшие брони');
+  String get pastBookings       => _t("O'tgan bronlar", 'Past bookings', 'Прошедшие броні');
   String seatsProgress(int booked, int total) => _t('$booked/$total o\'rin band', '$booked/$total seats taken', '$booked/$total мест занято');
 
   // Announcement management (admin)
@@ -434,6 +452,9 @@ class S {
   // Contact
   String get contactSeller         => _t("Bog'lanish", 'Contact', 'Связаться');
   String get phoneCopied           => _t('Telefon nusxalandi!', 'Phone copied!', 'Телефон скопирован!');
+  String get telegramUsernameHint  => _t("Telegram username (@ siz)", 'Telegram username (without @)', 'Telegram (без @)');
+  String get editListing           => _t('Tahrirlash', 'Edit listing', 'Редактировать');
+  String get listingUpdated        => _t("E'lon yangilandi!", 'Listing updated!', 'Объявление обновлено!');
   String get callSeller            => _t('Qo\'ng\'iroq', 'Call', 'Позвонить');
   String get telegramSeller        => _t('Telegram', 'Telegram', 'Telegram');
   String get telegramCopied        => _t('Telegram raqami nusxalandi!', 'Telegram number copied!', 'Номер Telegram скопирован!');
@@ -467,3 +488,6 @@ class S {
     return uz;
   }
 }
+
+
+

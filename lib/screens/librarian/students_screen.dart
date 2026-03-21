@@ -2,12 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/app_provider.dart';
 import '../../models/user_model.dart';
-import '../../models/book_model.dart';
-import '../../models/reservation_model.dart';
 import '../../models/review_model.dart';
 import '../../widgets/common_widgets.dart';
 import '../../constants.dart';
-import '../../l10n.dart';
+import '../student/book_detail_page.dart';
 
 // ─── Shared helper ────────────────────────────────────────────────────────────
 
@@ -25,16 +23,22 @@ class _InfoRow extends StatelessWidget {
         children: [
           Icon(icon, size: 16, color: Colors.grey),
           const SizedBox(width: 10),
-          Text(label,
-              style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade500,
-                  fontWeight: FontWeight.w600)),
+          Flexible(
+            child: Text(label,
+                style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade500,
+                    fontWeight: FontWeight.w600),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis),
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(value,
                 style: const TextStyle(
-                    fontSize: 13, fontWeight: FontWeight.w600)),
+                    fontSize: 13, fontWeight: FontWeight.w600),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
@@ -193,8 +197,12 @@ class _StudentListTile extends StatelessWidget {
               backgroundColor: isBanned
                   ? AppColors.red.withOpacity(0.12)
                   : AppColors.purple.withOpacity(0.12),
-              child: Text(student.avatar ?? '👤',
-                  style: const TextStyle(fontSize: 20)),
+              backgroundImage: (student.photoUrl != null && student.photoUrl!.trim().isNotEmpty)
+                  ? NetworkImage(student.photoUrl!.trim())
+                  : null,
+              child: (student.photoUrl != null && student.photoUrl!.trim().isNotEmpty)
+                  ? null
+                  : Text(student.avatar ?? '👤', style: const TextStyle(fontSize: 20)),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -206,7 +214,9 @@ class _StudentListTile extends StatelessWidget {
                       Expanded(
                         child: Text(student.name,
                             style: const TextStyle(
-                                fontSize: 14, fontWeight: FontWeight.w700)),
+                                fontSize: 14, fontWeight: FontWeight.w700),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
                       ),
                       if (isBanned)
                         Container(
@@ -301,7 +311,7 @@ class _StudentDetailPageState extends State<StudentDetailPage>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 3, vsync: this);
+    _tabs = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -350,6 +360,7 @@ class _StudentDetailPageState extends State<StudentDetailPage>
             Tab(text: "Ma'lumotlar"),
             Tab(text: 'Kitoblar'),
             Tab(text: 'Izohlar'),
+            Tab(text: 'Savollar'),
           ],
         ),
       ),
@@ -360,6 +371,7 @@ class _StudentDetailPageState extends State<StudentDetailPage>
               student: student, isBanned: _isBanned, onUnban: _unban),
           _StudentBooksTab(student: student),
           _StudentReviewsTab(student: student),
+          _StudentQuestionsTab(student: student),
         ],
       ),
     );
@@ -391,28 +403,28 @@ class _StudentInfoTab extends StatelessWidget {
               CircleAvatar(
                 radius: 32,
                 backgroundColor: AppColors.purple.withOpacity(0.12),
-                child: Text(student.avatar ?? '👤',
-                    style: const TextStyle(fontSize: 28)),
+                backgroundImage: (student.photoUrl != null && student.photoUrl!.trim().isNotEmpty)
+                    ? NetworkImage(student.photoUrl!.trim())
+                    : null,
+                child: (student.photoUrl != null && student.photoUrl!.trim().isNotEmpty)
+                    ? null
+                    : Text(student.avatar ?? '👤', style: const TextStyle(fontSize: 28)),
               ),
               const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(student.name,
-                        style: const TextStyle(
-                            fontSize: 17, fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 4),
-                    Text(student.degree ?? 'Bakalavr',
-                        style: TextStyle(
-                            fontSize: 12, color: Colors.grey.shade500)),
-                    const SizedBox(height: 6),
-                    StatusBadge(
-                      label: isBanned ? 'Bloklangan' : 'Faol',
-                      color: isBanned ? AppColors.red : AppColors.green,
-                    ),
-                  ],
-                ),
+               Expanded(
+                 child: Column(
+                   crossAxisAlignment: CrossAxisAlignment.start,
+                   children: [
+                     Text(student.name,
+                         style: const TextStyle(
+                             fontSize: 17, fontWeight: FontWeight.w800)),
+                     const SizedBox(height: 6),
+                     StatusBadge(
+                       label: isBanned ? 'Bloklangan' : 'Faol',
+                       color: isBanned ? AppColors.red : AppColors.green,
+                     ),
+                   ],
+                 ),
               ),
             ],
           ),
@@ -490,16 +502,6 @@ class _StudentInfoTab extends StatelessWidget {
                     icon: Icons.group_outlined,
                     label: 'Guruh',
                     value: student.group!),
-              if (student.faculty != null && student.faculty!.isNotEmpty)
-                _InfoRow(
-                    icon: Icons.school_outlined,
-                    label: 'Fakultet',
-                    value: student.faculty!),
-              if (student.direction != null && student.direction!.isNotEmpty)
-                _InfoRow(
-                    icon: Icons.trending_up_outlined,
-                    label: "Yo'nalish",
-                    value: student.direction!),
             ],
           ),
         ),
@@ -760,7 +762,7 @@ class _StudentBooksTab extends StatelessWidget {
   }
 }
 
-// ─── Tab 3: Reviews ───────────────────────────────────────────────────────────
+// ─── Tab 3: Reviews ──────────────────────────────────────────────────────────
 
 class _StudentReviewsTab extends StatefulWidget {
   final UserModel student;
@@ -912,6 +914,246 @@ class _StudentReviewsTabState extends State<_StudentReviewsTab> {
                   '${review.createdAt.month.toString().padLeft(2, '0')}.'
                   '${review.createdAt.year}',
                   style: TextStyle(fontSize: 10, color: Colors.grey.shade400),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ─── Tab 4: Questions ─────────────────────────────────────────────────────────
+
+class _StudentQuestionsTab extends StatefulWidget {
+  final UserModel student;
+  const _StudentQuestionsTab({required this.student});
+
+  @override
+  State<_StudentQuestionsTab> createState() => _StudentQuestionsTabState();
+}
+
+class _StudentQuestionsTabState extends State<_StudentQuestionsTab> {
+  List<Map<String, dynamic>>? _questions;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    final data = await context
+        .read<AppProvider>()
+        .fetchStudentQuestions(widget.student.id);
+    if (mounted) setState(() { _questions = data; _loading = false; });
+  }
+
+  Future<void> _deleteQuestion(String bookId, String questionId, String bookTitle) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Savolni o'chirish"),
+        content: Text('"$bookTitle" kitobidagi savolni o\'chirasizmi?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Bekor')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("O'chirish",
+                style: TextStyle(color: AppColors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      await context.read<AppProvider>().deleteQuestion(bookId, questionId);
+      await _load();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+
+    if (_questions == null || _questions!.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.help_outline_rounded,
+                size: 52, color: Colors.grey.shade300),
+            const SizedBox(height: 12),
+            const Text("Hech qanday savol yo'q",
+                style: TextStyle(color: Colors.grey)),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _questions!.length,
+      itemBuilder: (_, i) {
+        final item = _questions![i];
+        final q = item['question'] as QuestionModel;
+        final bookId = item['bookId'] as String;
+        final bookTitle = item['bookTitle'] as String;
+        final bookEmoji = item['bookEmoji'] as String;
+        final isAnswered = q.answerCount > 0;
+
+        // Find the book model for navigation
+        final app = context.read<AppProvider>();
+        final bookModel = app.books.cast().firstWhere(
+            (b) => b.id == bookId,
+            orElse: () => null);
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: AppCard(
+            borderColor: isAnswered
+                ? AppColors.green.withOpacity(0.3)
+                : AppColors.orange.withOpacity(0.35),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Book header
+                InkWell(
+                  onTap: bookModel != null
+                      ? () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => BookDetailPage(
+                                book: bookModel,
+                                initialTab: 2,
+                                highlightId: q.id,
+                              ),
+                            ),
+                          )
+                      : null,
+                  borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(14)),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+                    child: Row(
+                      children: [
+                        Text(bookEmoji, style: const TextStyle(fontSize: 18)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(bookTitle,
+                              style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.blue),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 7, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: isAnswered
+                                ? AppColors.green.withOpacity(0.12)
+                                : AppColors.orange.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(7),
+                          ),
+                          child: Text(
+                            isAnswered
+                                ? '✅ ${q.answerCount} javob'
+                                : '❓ Javobsiz',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              color: isAnswered
+                                  ? AppColors.green
+                                  : AppColors.orange,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        GestureDetector(
+                          onTap: () => _deleteQuestion(
+                              bookId, q.id, bookTitle),
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: AppColors.red.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Icon(
+                                Icons.delete_outline_rounded,
+                                size: 15,
+                                color: AppColors.red),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Question text + date
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).scaffoldBackgroundColor,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(q.question,
+                            style: const TextStyle(
+                                fontSize: 13, height: 1.5)),
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Text(
+                            '${q.createdAt.day.toString().padLeft(2, '0')}.'
+                            '${q.createdAt.month.toString().padLeft(2, '0')}.'
+                            '${q.createdAt.year}',
+                            style: TextStyle(
+                                fontSize: 10, color: Colors.grey.shade400),
+                          ),
+                          if (bookModel != null) ...[
+                            const Spacer(),
+                            GestureDetector(
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => BookDetailPage(
+                                    book: bookModel,
+                                    initialTab: 2,
+                                    highlightId: q.id,
+                                  ),
+                                ),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text('Kitobga o\'t',
+                                      style: TextStyle(
+                                          fontSize: 10,
+                                          color: AppColors.blue,
+                                          fontWeight: FontWeight.w600)),
+                                  SizedBox(width: 3),
+                                  Icon(Icons.open_in_new_rounded,
+                                      size: 11, color: AppColors.blue),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),

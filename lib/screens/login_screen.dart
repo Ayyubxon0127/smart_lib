@@ -6,6 +6,7 @@ import 'student/student_main.dart';
 import 'librarian/librarian_main.dart';
 import '../constants.dart';
 import '../widgets/common_widgets.dart';
+import '../widgets/app_logo.dart';
 import '../l10n.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -153,16 +154,11 @@ class _LoginScreenState extends State<LoginScreen> {
               // Logo
               Center(
                 child: Container(
-                  width: 80, height: 80,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [AppColors.accent, AppColors.accentLight],
-                      begin: Alignment.topLeft, end: Alignment.bottomRight,
-                    ),
                     borderRadius: BorderRadius.circular(22),
-                    boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.4), blurRadius: 20, offset: const Offset(0, 8))],
+                    boxShadow: [BoxShadow(color: AppColors.accent.withValues(alpha: 0.35), blurRadius: 24, offset: const Offset(0, 8))],
                   ),
-                  child: const Icon(Icons.menu_book_rounded, color: Colors.black, size: 40),
+                  child: const AppLogo(size: 88),
                 ),
               ),
               const SizedBox(height: 24),

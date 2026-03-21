@@ -4,12 +4,14 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models/book_model.dart';
 import '../models/notification_model.dart';
 import '../providers/app_provider.dart';
 import '../screens/student/my_books_screen.dart';
 import '../screens/student/notifications_screen.dart';
 import '../screens/student/library_booking_screen.dart';
 import '../screens/student/books_screen.dart';
+import '../screens/student/book_detail_page.dart';
 import '../screens/librarian/reservations_screen.dart';
 import '../screens/librarian/rooms_screen.dart';
 import 'notification_service.dart';
@@ -72,10 +74,10 @@ class FcmService {
 
   // ── Internal ─────────────────────────────────────────────────────────────────
 
-  static void _handlePayload(String? targetScreen, String? targetId, [String? targetId2]) {
+  static Future<void> _handlePayload(String? targetScreen, String? targetId, [String? targetId2]) async {
     final context = _navigatorKey?.currentContext;
     if (context == null) return;
-    navigateTo(context, targetScreen, targetId, targetId2: targetId2);
+    await navigateTo(context, targetScreen, targetId, targetId2: targetId2);
   }
 
   // ── Public navigation helper ──────────────────────────────────────────────────
@@ -84,107 +86,110 @@ class FcmService {
   /// Navigates to the correct screen based on [targetScreen], [targetId], and
   /// optional [targetId2] (secondary id, e.g. questionId/reviewId/bookingId).
   /// Role-aware: librarian and student get different destinations.
-  static void navigateTo(
+  static Future<void> navigateTo(
     BuildContext context,
     String? targetScreen,
     String? targetId, {
     String? targetId2,
-  }) {
+  }) async {
     if (targetScreen == null) return;
 
     final app = context.read<AppProvider>();
     final nav = Navigator.of(context);
 
     switch (targetScreen) {
-
-      // ── Kitob bron (kutubxonachi) ─────────────────────────────────────────
       case NotifScreen.reservations:
         if (app.role == 'librarian') {
-          nav.push(MaterialPageRoute(
+          await nav.push(MaterialPageRoute(
             builder: (_) => const LibReservationsScreen(),
           ));
-        } else {
-          nav.push(MaterialPageRoute(
-            builder: (_) => const MyBooksScreen(),
-          ));
+          return;
         }
-
-      // ── Qaytarish so'rovi (kutubxonachi → return_requested filter) ────────
-      case NotifScreen.reservationsReturn:
-        if (app.role == 'librarian') {
-          nav.push(MaterialPageRoute(
-            builder: (_) => const LibReservationsScreen(initialFilter: 'return_requested'),
-          ));
-        } else {
-          nav.push(MaterialPageRoute(
-            builder: (_) => const MyBooksScreen(),
-          ));
-        }
-
-      // ── Kitob tasdiqlandi (talaba → active tab) ───────────────────────────
-      case NotifScreen.myBooksActive:
-        nav.push(MaterialPageRoute(
-          builder: (_) => const MyBooksScreen(initialTab: 0),
-        ));
-
-      // ── Xona / joy bron ───────────────────────────────────────────────────
-      case NotifScreen.rooms:
-        if (app.role == 'librarian') {
-          nav.push(MaterialPageRoute(
-            builder: (_) => const LibRoomsScreen(),
-          ));
-        } else {
-          // targetId2 = bookingId — highlight that specific booking slot
-          nav.push(MaterialPageRoute(
-            builder: (_) => LibraryBookingScreen(initialTab: 1, highlightBookingId: targetId2),
-          ));
-        }
-
-      // ── Talabaning kitoblari ───────────────────────────────────────────────
-      case NotifScreen.myBooks:
-        nav.push(MaterialPageRoute(
+        await nav.push(MaterialPageRoute(
           builder: (_) => const MyBooksScreen(),
         ));
+        return;
 
-      // ── Kitob tafsilotlari – Info tab (0) ────────────────────────────────
+      case NotifScreen.reservationsReturn:
+        if (app.role == 'librarian') {
+          await nav.push(MaterialPageRoute(
+            builder: (_) => const LibReservationsScreen(initialFilter: 'return_requested'),
+          ));
+          return;
+        }
+        await nav.push(MaterialPageRoute(
+          builder: (_) => const MyBooksScreen(),
+        ));
+        return;
+
+      case NotifScreen.myBooksActive:
+        await nav.push(MaterialPageRoute(
+          builder: (_) => const MyBooksScreen(initialTab: 0),
+        ));
+        return;
+
+      case NotifScreen.rooms:
+        if (app.role == 'librarian') {
+          await nav.push(MaterialPageRoute(
+            builder: (_) => const LibRoomsScreen(),
+          ));
+          return;
+        }
+        await nav.push(MaterialPageRoute(
+          builder: (_) => LibraryBookingScreen(initialTab: 1, highlightBookingId: targetId2),
+        ));
+        return;
+
+      case NotifScreen.myBooks:
+        await nav.push(MaterialPageRoute(
+          builder: (_) => const MyBooksScreen(),
+        ));
+        return;
+
       case NotifScreen.bookDetail:
-        if (targetId != null) {
-          final book = app.books.where((b) => b.id == targetId).firstOrNull;
-          if (book != null) {
-            nav.push(MaterialPageRoute(
-              builder: (_) => BookDetailPage(book: book),
-            ));
-          }
-        }
+        if (targetId == null) return;
+        final book = await _resolveBook(app, targetId);
+        if (book == null) return;
+        await nav.push(MaterialPageRoute(
+          builder: (_) => BookDetailPage(book: book),
+        ));
+        return;
 
-      // ── Kitob tafsilotlari – Sharhlar tab (1) ────────────────────────────
       case NotifScreen.bookDetailReviews:
-        if (targetId != null) {
-          final book = app.books.where((b) => b.id == targetId).firstOrNull;
-          if (book != null) {
-            nav.push(MaterialPageRoute(
-              builder: (_) => BookDetailPage(book: book, initialTab: 1, highlightId: targetId2),
-            ));
-          }
-        }
+        if (targetId == null) return;
+        final book = await _resolveBook(app, targetId);
+        if (book == null) return;
+        await nav.push(MaterialPageRoute(
+          builder: (_) => BookDetailPage(book: book, initialTab: 1, highlightId: targetId2),
+        ));
+        return;
 
-      // ── Kitob tafsilotlari – Savollar tab (2) ────────────────────────────
       case NotifScreen.bookDetailQuestions:
-        if (targetId != null) {
-          final book = app.books.where((b) => b.id == targetId).firstOrNull;
-          if (book != null) {
-            nav.push(MaterialPageRoute(
-              builder: (_) => BookDetailPage(book: book, initialTab: 2, highlightId: targetId2),
-            ));
-          }
-        }
+        if (targetId == null) return;
+        final book = await _resolveBook(app, targetId);
+        if (book == null) return;
+        await nav.push(MaterialPageRoute(
+          builder: (_) => BookDetailPage(book: book, initialTab: 2, highlightId: targetId2),
+        ));
+        return;
 
-      // ── Bildirishnomalar ──────────────────────────────────────────────────
       case NotifScreen.notifications:
       default:
-        nav.push(MaterialPageRoute(
+        await nav.push(MaterialPageRoute(
           builder: (_) => const NotificationsScreen(),
         ));
+        return;
     }
+  }
+
+  static Future<BookModel?> _resolveBook(AppProvider app, String bookId) async {
+    final cached = app.books.where((b) => b.id == bookId).firstOrNull;
+    if (cached != null) return cached;
+
+    try {
+      await app.fetchBooks();
+    } catch (_) {}
+
+    return app.books.where((b) => b.id == bookId).firstOrNull;
   }
 }

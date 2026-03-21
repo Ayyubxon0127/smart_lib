@@ -6,19 +6,39 @@ import '../../l10n.dart';
 
 const _kDefaultFaq = [
   {
-    'question': 'Ilovadan qanday foydalanaman?',
+    'question': 'Coin va levellar qanday ishlaydi?',
     'answer':
-        'Ilovada siz turli kitoblarni ko\'rishingiz, o\'qishingiz va saqlab qo\'yishingiz mumkin. Shuningdek "Kitob bozori" bo\'limida talabalar o\'z kitoblarini sotish, ijaraga berish yoki bepul ulashishlari mumkin.',
+        'Ilovada faolligingiz uchun coin (tanga) to\'playsiz:\n'
+        '• Kitob qaytarganingizda: +20 coin\n'
+        '• Kutubxona xonasida dars qilganingiz tasdiqlanganda: +5 coin\n\n'
+        'Har 100 coin = 1 level. Masalan: 100 coin → Level 2, 200 coin → Level 3 va hokazo. '
+        'Level va coinlaringizni Sozlamalar → Profilingizdan ko\'rishingiz mumkin.',
   },
   {
-    'question': 'Kitobni qanday yuklab olaman yoki o\'qiyman?',
+    'question': 'Qanday qilib yuqori levelga chiqaman?',
     'answer':
-        'Kitob sahifasiga kirib "O\'qish" yoki "Yuklab olish" tugmasini bosish orqali kitobni o\'qishingiz yoki qurilmangizga saqlashingiz mumkin.',
+        'Ko\'proq kitob o\'qing va qaytaring — har bir qaytarish +20 coin beradi. '
+        'Kutubxona xonalarida dars qiling — har bir tasdiqlangan sessiya +5 coin. '
+        'Masalan, 5 ta kitob qaytarsangiz 100 coin (Level 2) bo\'ladi. '
+        'Dars soatlaringiz ham real vaqt asosida hisoblanadi!',
+  },
+  {
+    'question': 'Coin va levellarim qaerda ko\'rinadi?',
+    'answer':
+        'Sozlamalar bo\'limidagi profil kartochkasida coinlar, level va progress bar ko\'rinadi. '
+        'Shuningdek o\'qilgan kitoblar soni, dars vaqti va kutubxonaga tashriflar soni ham real ma\'lumotlar asosida hisoblanadi.',
+  },
+  {
+    'question': 'Ilovadan qanday foydalanaman?',
+    'answer':
+        'Ilovada siz turli kitoblarni ko\'rishingiz, bron qilishingiz va kutubxona xonalarini band qilishingiz mumkin. '
+        '"Kitob bozori" bo\'limida talabalar o\'z kitoblarini sotish, ijaraga berish yoki bepul ulashishlari mumkin.',
   },
   {
     'question': 'Kitob bozoriga qanday e\'lon joylayman?',
     'answer':
-        'Pastki menyudagi "Bozor" bo\'limiga kiring va "E\'lon qo\'shish" tugmasini bosing. Kitob nomi, muallif, narx va tavsifni kiritib e\'lon joylashingiz mumkin.',
+        'Pastki menyudagi "Bozor" bo\'limiga kiring va "E\'lon qo\'shish" tugmasini bosing. '
+        'Kitob nomi, muallif, narx va tavsifni kiritib e\'lon joylashingiz mumkin.',
   },
   {
     'question': 'Kitobni ijaraga olish mumkinmi?',

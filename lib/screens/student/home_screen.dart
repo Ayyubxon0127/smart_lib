@@ -4,9 +4,9 @@ import '../../providers/app_provider.dart';
 import '../../widgets/common_widgets.dart';
 import '../../constants.dart';
 import '../../l10n.dart';
+import '../../models/book_model.dart';
 import 'notifications_screen.dart';
-import 'book_market_screen.dart' show showAddListingSheet;
-import '../../models/book_market_model.dart';
+import 'book_detail_page.dart';
 
 // Indekslar: 0=Home 1=Books 2=Rooms 3=Market 4=Mine 5=Settings
 const int _kBooksIndex  = 1;
@@ -121,7 +121,12 @@ class StudentHomeScreen extends StatelessWidget {
                   CircleAvatar(
                     radius: 26,
                     backgroundColor: AppColors.accent.withOpacity(0.2),
-                    child: Text(user?.avatar ?? '👤', style: const TextStyle(fontSize: 24)),
+                    backgroundImage: (user?.photoUrl != null && user!.photoUrl!.trim().isNotEmpty)
+                        ? NetworkImage(user.photoUrl!.trim())
+                        : null,
+                    child: (user?.photoUrl != null && user!.photoUrl!.trim().isNotEmpty)
+                        ? null
+                        : Text(user?.avatar ?? '👤', style: const TextStyle(fontSize: 24)),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -263,7 +268,7 @@ class StudentHomeScreen extends StatelessWidget {
               )
             else
               SizedBox(
-                height: 180,
+                height: 180 * MediaQuery.textScaleFactorOf(context).clamp(1.0, 1.5),
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.only(bottom: 4),
@@ -314,97 +319,16 @@ class StudentHomeScreen extends StatelessWidget {
               ),
             const SizedBox(height: 8),
 
-            // ── Yangi kitoblar ─────────────────────────────────────────
+            // ── Yangi kitoblar ─────────────────────────────────────────────────────────
             _SectionHeader(
               label: s.newBooks,
               icon: Icons.auto_stories_outlined,
               onTap: () => onNavigate?.call(_kBooksIndex),
             ),
-            if (recentBooks.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Text(s.loadingBooks, style: const TextStyle(color: Colors.grey)),
-              )
-            else
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.04),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                padding: const EdgeInsets.all(10),
-                child: GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    childAspectRatio: 0.65,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
-                  ),
-                  itemCount: recentBooks.length + 1, // +1 = "barchasi" kartasi
-                  itemBuilder: (_, i) {
-                    // Oxirida "Barchasi →" kartasi
-                    if (i == recentBooks.length) {
-                      return InkWell(
-                        onTap: () => onNavigate?.call(_kBooksIndex),
-                        borderRadius: BorderRadius.circular(12),
-                        child: AppCard(
-                          padding: const EdgeInsets.all(8),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                width: 32, height: 32,
-                                decoration: BoxDecoration(
-                                  color: AppColors.accent.withOpacity(0.12),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(Icons.arrow_forward_rounded,
-                                    color: AppColors.accent, size: 16),
-                              ),
-                              const SizedBox(height: 6),
-                              const Text(
-                                'Barchasi',
-                                style: TextStyle(
-                                    fontSize: 10, fontWeight: FontWeight.w700,
-                                    color: AppColors.accent),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }
-                    final b = recentBooks[i];
-                    return InkWell(
-                      onTap: () => onNavigate?.call(_kBooksIndex),
-                      borderRadius: BorderRadius.circular(12),
-                      child: AppCard(
-                        padding: const EdgeInsets.all(7),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            BookCover(
-                              imageUrl: b.imageUrl, emoji: b.coverEmoji,
-                              width: 56, height: 72,
-                            ),
-                            const SizedBox(height: 5),
-                            Text(
-                              b.title,
-                              style: const TextStyle(
-                                  fontSize: 10, fontWeight: FontWeight.w700),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
+            _NewBooksSection(
+              books: recentBooks,
+              isLoading: !app.initialized,
+            ),
             const SizedBox(height: 4),
 
             // ── So'nggi e'lonlar ───────────────────────────────────────
@@ -594,7 +518,7 @@ class _MarketItemCard extends StatelessWidget {
                       )
                     : _placeholder(),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 5),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
@@ -605,16 +529,18 @@ class _MarketItemCard extends StatelessWidget {
                   typeLabel,
                   style: TextStyle(
                       fontSize: 9, fontWeight: FontWeight.w700, color: typeColor),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 item.title,
                 style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
-                maxLines: 2,
+                maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              const Spacer(),
+              const SizedBox(height: 3),
               if (item.price != null && item.price! > 0)
                 Text(
                   '${item.price!.toStringAsFixed(0)} so\'m',
@@ -650,6 +576,333 @@ class _MarketItemCard extends StatelessWidget {
         child: const Icon(Icons.storefront_rounded,
             color: AppColors.teal, size: 28),
       );
+}
+
+// ── Yangi kitoblar bo'limi ─────────────────────────────────────────────────────
+
+class _NewBooksSection extends StatelessWidget {
+  final List<BookModel> books;
+  final bool isLoading;
+
+  const _NewBooksSection({required this.books, required this.isLoading});
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading) return const _SkeletonBooksRow();
+
+    if (books.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Center(
+          child: Column(
+            children: [
+              Icon(Icons.auto_stories_outlined,
+                  size: 40, color: Colors.grey.shade600),
+              const SizedBox(height: 8),
+              Text('Hozircha kitoblar yo\'q',
+                  style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: 210,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.only(bottom: 4, right: 4),
+        itemCount: books.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (ctx, i) => _NewBookCard(book: books[i], isNew: i < 5),
+      ),
+    );
+  }
+}
+
+// ── Yangi kitob kartasi ────────────────────────────────────────────────────────
+
+class _NewBookCard extends StatefulWidget {
+  final BookModel book;
+  final bool isNew;
+  const _NewBookCard({required this.book, required this.isNew});
+
+  @override
+  State<_NewBookCard> createState() => _NewBookCardState();
+}
+
+class _NewBookCardState extends State<_NewBookCard> {
+  double _scale = 1.0;
+
+  void _onTapDown(_) => setState(() => _scale = 0.96);
+  void _onTapUp(_) => setState(() => _scale = 1.0);
+  void _onTapCancel() => setState(() => _scale = 1.0);
+
+  @override
+  Widget build(BuildContext context) {
+    final book = widget.book;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return GestureDetector(
+      onTapDown: _onTapDown,
+      onTapUp: _onTapUp,
+      onTapCancel: _onTapCancel,
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => BookDetailPage(book: book)),
+      ),
+      child: AnimatedScale(
+        scale: _scale,
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOut,
+        child: SizedBox(
+          width: 120,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              decoration: BoxDecoration(
+                color: isDark
+                    ? Colors.white.withOpacity(0.06)
+                    : Colors.black.withOpacity(0.04),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isDark
+                      ? Colors.white.withOpacity(0.08)
+                      : Colors.black.withOpacity(0.06),
+                  width: 1,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Cover with gradient + NEW badge
+                  Expanded(
+                    flex: 4,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        // Cover image or emoji
+                        ClipRRect(
+                          borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(14)),
+                          child: book.imageUrl != null &&
+                                  book.imageUrl!.trim().isNotEmpty
+                              ? Image.network(
+                                  book.imageUrl!.trim(),
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) =>
+                                      _emojiCover(book.coverEmoji, isDark),
+                                )
+                              : _emojiCover(book.coverEmoji, isDark),
+                        ),
+                        // Bottom gradient overlay
+                        Positioned(
+                          left: 0, right: 0, bottom: 0,
+                          height: 52,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.transparent,
+                                  Colors.black.withOpacity(0.65),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        // NEW badge
+                        if (widget.isNew)
+                          Positioned(
+                            top: 7,
+                            left: 7,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.accent,
+                                borderRadius: BorderRadius.circular(6),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.accent.withOpacity(0.5),
+                                    blurRadius: 6,
+                                  ),
+                                ],
+                              ),
+                              child: const Text(
+                                'NEW',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ),
+                          ),
+                        // Unavailable dimmed overlay
+                        if (book.available <= 0)
+                          Positioned.fill(
+                            child: ClipRRect(
+                              borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(14)),
+                              child: Container(
+                                color: Colors.black.withOpacity(0.45),
+                                alignment: Alignment.center,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.6),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: const Text(
+                                    'Mavjud emas',
+                                    style: TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 8,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        // Rating at bottom of cover
+                        if (book.rating > 0)
+                          Positioned(
+                            bottom: 5,
+                            right: 7,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.star_rounded,
+                                    color: AppColors.accent, size: 10),
+                                const SizedBox(width: 2),
+                                Text(
+                                  book.rating.toStringAsFixed(1),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  // Title + author
+                  Expanded(
+                    flex: 2,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            book.title,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              height: 1.2,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            book.author,
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.grey.shade500,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _emojiCover(String? emoji, bool isDark) => Container(
+        color: isDark
+            ? AppColors.accent.withOpacity(0.12)
+            : AppColors.accent.withOpacity(0.08),
+        alignment: Alignment.center,
+        child: Text(emoji ?? '📚', style: const TextStyle(fontSize: 38)),
+      );
+}
+
+// ── Skeleton loading row ───────────────────────────────────────────────────────
+
+class _SkeletonBooksRow extends StatefulWidget {
+  const _SkeletonBooksRow();
+
+  @override
+  State<_SkeletonBooksRow> createState() => _SkeletonBooksRowState();
+}
+
+class _SkeletonBooksRowState extends State<_SkeletonBooksRow>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1000))
+      ..repeat(reverse: true);
+    _anim = Tween<double>(begin: 0.3, end: 0.7).animate(
+        CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (_, __) => SizedBox(
+        height: 210,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.only(bottom: 4),
+          itemCount: 5,
+          separatorBuilder: (_, __) => const SizedBox(width: 10),
+          itemBuilder: (_, __) => ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              width: 120,
+              decoration: BoxDecoration(
+                color: isDark
+                    ? Colors.white.withOpacity(_anim.value * 0.1)
+                    : Colors.black.withOpacity(_anim.value * 0.06),
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 // ── Stat kartasi ───────────────────────────────────────────────────────────────

@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/app_provider.dart';
 import '../../models/book_model.dart';
-import '../../models/review_model.dart';
 import '../../widgets/common_widgets.dart';
 import '../../constants.dart';
 import '../../l10n.dart';
+import 'book_detail_page.dart';
+import 'book_reviews_tab.dart';
+import 'book_questions_tab.dart';
+import 'book_discussions_tab.dart';
 
 class BooksScreen extends StatefulWidget {
   const BooksScreen({super.key});
@@ -194,6 +197,9 @@ class _BooksSections extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = S.of(context);
+    final textScale = MediaQuery.textScaleFactorOf(context).clamp(1.0, 1.4);
+    final horizontalCardHeight =
+        210 + ((textScale - 1.0) * 70); // grow only when text is scaled up
 
     // Recently Added — latest 8 by addedDate
     final recent = [...books]
@@ -246,7 +252,7 @@ class _BooksSections extends StatelessWidget {
           color: AppColors.accent,
         ),
         SizedBox(
-          height: 210,
+          height: horizontalCardHeight,
           child: ListView.separated(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
             scrollDirection: Axis.horizontal,
@@ -268,7 +274,7 @@ class _BooksSections extends StatelessWidget {
             color: AppColors.orange,
           ),
           SizedBox(
-            height: 210,
+            height: horizontalCardHeight,
             child: ListView.separated(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
               scrollDirection: Axis.horizontal,
@@ -340,7 +346,10 @@ class _BookGridCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textScale = MediaQuery.textScaleFactorOf(context).clamp(1.0, 1.4);
+    final coverHeight =
+        (110 - ((textScale - 1.0) * 24)).clamp(94.0, 110.0).toDouble();
+
     return GestureDetector(
       onTap: () => Navigator.push(
           context,
@@ -363,7 +372,7 @@ class _BookGridCard extends StatelessWidget {
                   borderRadius:
                       const BorderRadius.vertical(top: Radius.circular(14)),
                   child: SizedBox(
-                    height: 110,
+                    height: coverHeight,
                     width: double.infinity,
                     child: book.imageUrl != null && book.imageUrl!.isNotEmpty
                         ? Image.network(book.imageUrl!,
@@ -373,6 +382,34 @@ class _BookGridCard extends StatelessWidget {
                         : _EmojiCover(emoji: book.coverEmoji),
                   ),
                 ),
+                // Unavailable dimmed overlay
+                if (book.available <= 0)
+                  Positioned.fill(
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(14)),
+                      child: Container(
+                        color: Colors.black.withOpacity(0.45),
+                        alignment: Alignment.center,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.6),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text(
+                            'Mavjud emas',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 Positioned(
                   top: 4,
                   right: 4,
@@ -389,14 +426,14 @@ class _BookGridCard extends StatelessWidget {
               ],
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 7, 8, 6),
+              padding: const EdgeInsets.fromLTRB(8, 6, 8, 5),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(book.title,
                       style: const TextStyle(
                           fontSize: 11, fontWeight: FontWeight.w700),
-                      maxLines: 2,
+                      maxLines: textScale > 1.15 ? 1 : 2,
                       overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 3),
                   Text(book.author,
@@ -404,7 +441,7 @@ class _BookGridCard extends StatelessWidget {
                           fontSize: 10, color: Colors.grey.shade500),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 5),
+                  const SizedBox(height: 4),
                   Wrap(
                     spacing: 4,
                     runSpacing: 4,
@@ -473,7 +510,6 @@ class _BookListCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final app       = context.read<AppProvider>();
     final s         = S.read(context);
     final available = book.available > 0;
 
@@ -489,12 +525,19 @@ class _BookListCard extends StatelessWidget {
             child: SizedBox(
               width: 48,
               height: 64,
-              child: book.imageUrl != null && book.imageUrl!.isNotEmpty
-                  ? Image.network(book.imageUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) =>
-                          _EmojiCover(emoji: book.coverEmoji))
-                  : _EmojiCover(emoji: book.coverEmoji),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  book.imageUrl != null && book.imageUrl!.isNotEmpty
+                      ? Image.network(book.imageUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) =>
+                              _EmojiCover(emoji: book.coverEmoji))
+                      : _EmojiCover(emoji: book.coverEmoji),
+                  if (book.available <= 0)
+                    Container(color: Colors.black.withOpacity(0.45)),
+                ],
+              ),
             ),
           ),
           const SizedBox(width: 14),
@@ -551,22 +594,7 @@ class _BookListCard extends StatelessWidget {
             children: [
               _FavoriteButton(bookId: book.id),
               const SizedBox(height: 6),
-              if (available)
-                _ReserveButton(book: book)
-              else
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(s.busy,
-                      style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.grey.shade500)),
-                ),
+              _ReserveButton(book: book),
             ],
           ),
         ],
@@ -613,11 +641,38 @@ class _ReserveButtonState extends State<_ReserveButton> {
 
   @override
   Widget build(BuildContext context) {
-    final app = context.read<AppProvider>();
-    final s   = S.read(context);
+    final app         = context.watch<AppProvider>();
+    final s           = S.read(context);
+    final reservation = app.getBookReservation(widget.book.id);
+
+    // Determine label, colour, icon and whether button is interactive.
+    final String label;
+    final Color  bgColor;
+    final bool   disabled;
+
+    if (reservation != null) {
+      if (reservation.status == 'pending_confirm') {
+        label    = s.statusPendingConfirm;
+        bgColor  = AppColors.orange.withOpacity(0.55);
+        disabled = true;
+      } else {
+        // active | pending_return
+        label    = s.statusReservedActive;
+        bgColor  = AppColors.green.withOpacity(0.55);
+        disabled = true;
+      }
+    } else if (widget.book.available <= 0) {
+      label    = s.notAvailable;
+      bgColor  = Colors.grey.withOpacity(0.25);
+      disabled = true;
+    } else {
+      label    = s.reserveBook;
+      bgColor  = AppColors.accent;
+      disabled = false;
+    }
 
     return GestureDetector(
-      onTap: _loading
+      onTap: (_loading || disabled)
           ? null
           : () async {
               setState(() => _loading = true);
@@ -644,12 +699,9 @@ class _ReserveButtonState extends State<_ReserveButton> {
             },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: _loading
-              ? AppColors.accent.withOpacity(0.5)
-              : AppColors.accent,
+          color: _loading ? bgColor.withOpacity(0.5) : bgColor,
           borderRadius: BorderRadius.circular(10),
         ),
         child: _loading
@@ -658,7 +710,7 @@ class _ReserveButtonState extends State<_ReserveButton> {
                 height: 14,
                 child: CircularProgressIndicator(
                     strokeWidth: 2, color: Colors.black))
-            : Text(s.reserve,
+            : Text(label,
                 style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
@@ -785,1215 +837,3 @@ class _SkeletonBox extends StatelessWidget {
     );
   }
 }
-
-// ── Full Book Detail Page ─────────────────────────────────────────────────────
-
-class BookDetailPage extends StatefulWidget {
-  final BookModel book;
-  /// Optional: open directly on a specific tab. 0=Info, 1=Reviews, 2=Questions
-  final int? initialTab;
-  /// Optional: id of a specific review/question to scroll to and highlight.
-  final String? highlightId;
-  const BookDetailPage({super.key, required this.book, this.initialTab, this.highlightId});
-
-  @override
-  State<BookDetailPage> createState() => _BookDetailPageState();
-}
-
-class _BookDetailPageState extends State<BookDetailPage>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabs;
-  late BookModel _book;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabs = TabController(
-      length: 3,
-      vsync: this,
-      initialIndex: (widget.initialTab ?? 0).clamp(0, 2),
-    );
-    _book = widget.book;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final app = context.read<AppProvider>();
-      if (app.role == 'student') {
-        app.incrementBookViews(_book.id);
-        app.addToHistory(_book.id);
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _tabs.dispose();
-    super.dispose();
-  }
-
-  void _refreshBook() {
-    final app     = context.read<AppProvider>();
-    final updated = app.books.firstWhere((b) => b.id == _book.id,
-        orElse: () => _book);
-    if (mounted) setState(() => _book = updated);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final s = S.of(context);
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_book.title,
-            maxLines: 1, overflow: TextOverflow.ellipsis),
-        bottom: TabBar(
-          controller: _tabs,
-          tabs: [
-            Tab(text: s.bookInfo),
-            Tab(text: s.reviews),
-            Tab(text: s.questions),
-          ],
-        ),
-      ),
-      body: TabBarView(
-        controller: _tabs,
-        children: [
-          _BookInfoTab(book: _book, onReserved: _refreshBook),
-          _ReviewsTab(book: _book, onReviewAdded: _refreshBook, highlightId: widget.highlightId),
-          _QuestionsTab(book: _book, highlightId: widget.highlightId),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Tab 1: Book Info ──────────────────────────────────────────────────────────
-
-class _BookInfoTab extends StatelessWidget {
-  final BookModel book;
-  final VoidCallback onReserved;
-  const _BookInfoTab({required this.book, required this.onReserved});
-
-  @override
-  Widget build(BuildContext context) {
-    final s           = S.read(context);
-    final app         = context.read<AppProvider>();
-    final isLibrarian = app.role == 'librarian';
-    final isDark      = Theme.of(context).brightness == Brightness.dark;
-
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        // Hero cover
-        Center(
-          child: Container(
-            width: 120,
-            height: 160,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.accent.withOpacity(0.2),
-                  blurRadius: 20,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: book.imageUrl != null && book.imageUrl!.isNotEmpty
-                  ? Image.network(book.imageUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) =>
-                          _EmojiCover(emoji: book.coverEmoji))
-                  : _EmojiCover(emoji: book.coverEmoji),
-            ),
-          ),
-        ),
-        const SizedBox(height: 20),
-
-        // Title & author
-        Text(book.title,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-            textAlign: TextAlign.center),
-        const SizedBox(height: 6),
-        Text(book.author,
-            style: TextStyle(color: Colors.grey.shade500),
-            textAlign: TextAlign.center),
-
-        // Rating
-        if (book.rating > 0) ...[
-          const SizedBox(height: 14),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              ...List.generate(
-                  5,
-                  (i) => Icon(
-                        i < book.rating.round()
-                            ? Icons.star_rounded
-                            : Icons.star_outline_rounded,
-                        size: 22,
-                        color: Colors.amber,
-                      )),
-              const SizedBox(width: 8),
-              Text(
-                  '${book.rating.toStringAsFixed(1)} (${book.reviewCount})',
-                  style: const TextStyle(fontWeight: FontWeight.w700)),
-            ],
-          ),
-        ],
-
-        // Meta chips
-        const SizedBox(height: 16),
-        Wrap(
-          alignment: WrapAlignment.center,
-          spacing: 8,
-          runSpacing: 6,
-          children: [
-            _MetaChip(
-              icon: Icons.category_outlined,
-              label: book.category,
-              color: AppColors.blue,
-            ),
-            _MetaChip(
-              icon: Icons.inventory_2_outlined,
-              label: '${book.total} ${s.lang == 'uz' ? 'ta nusxa' : s.lang == 'en' ? 'copies' : 'экз.'}',
-              color: AppColors.purple,
-            ),
-            _MetaChip(
-              icon: Icons.check_circle_outline_rounded,
-              label: s.available(book.available),
-              color: book.available > 0 ? AppColors.green : Colors.grey,
-            ),
-            if (book.views > 0)
-              _MetaChip(
-                icon: Icons.visibility_outlined,
-                label: s.viewsCount(book.views),
-                color: AppColors.teal,
-              ),
-          ],
-        ),
-
-        // Description
-        const SizedBox(height: 20),
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: isDark
-                ? Colors.white.withOpacity(0.04)
-                : Colors.black.withOpacity(0.03),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(book.description,
-              style: const TextStyle(fontSize: 13, height: 1.7)),
-        ),
-
-        if (!isLibrarian) ...[
-          const SizedBox(height: 24),
-          AccentButton(
-            label: book.available > 0 ? s.reserveBook : s.notAvailable,
-            icon: Icons.bookmark_add_outlined,
-            onTap: book.available > 0
-                ? () async {
-                    final error = await app.reserveBook(book.id);
-                    if (!context.mounted) return;
-                    if (error != null) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content: Text(error),
-                        backgroundColor: AppColors.red,
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ));
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content: Text(s.reserveSuccessFull),
-                        backgroundColor: AppColors.green,
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ));
-                      onReserved();
-                    }
-                  }
-                : null,
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _MetaChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  const _MetaChip(
-      {required this.icon, required this.label, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: color),
-          const SizedBox(width: 5),
-          Text(label,
-              style: TextStyle(
-                  fontSize: 11, fontWeight: FontWeight.w700, color: color)),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Tab 2: Reviews ────────────────────────────────────────────────────────────
-
-class _ReviewsTab extends StatefulWidget {
-  final BookModel book;
-  final VoidCallback onReviewAdded;
-  final String? highlightId;
-  const _ReviewsTab({required this.book, required this.onReviewAdded, this.highlightId});
-
-  @override
-  State<_ReviewsTab> createState() => _ReviewsTabState();
-}
-
-class _ReviewsTabState extends State<_ReviewsTab> {
-  List<ReviewModel>? _reviews;
-  bool? _hasReturned;
-  bool? _alreadyReviewed;
-  int _selectedRating = 5;
-  final _commentCtrl = TextEditingController();
-  bool _submitting   = false;
-  final _highlightKey = GlobalKey();
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  @override
-  void dispose() {
-    _commentCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _load() async {
-    final app     = context.read<AppProvider>();
-    final results = await Future.wait([
-      app.fetchReviews(widget.book.id),
-      app.hasUserReviewed(widget.book.id),
-    ]);
-    if (mounted) {
-      setState(() {
-        _reviews         = results[0] as List<ReviewModel>;
-        _alreadyReviewed = results[1] as bool;
-        _hasReturned     = app.hasReturnedBook(widget.book.id);
-      });
-      if (widget.highlightId != null) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          final ctx = _highlightKey.currentContext;
-          if (ctx != null) {
-            Scrollable.ensureVisible(ctx,
-                duration: const Duration(milliseconds: 400), alignment: 0.2);
-          }
-        });
-      }
-    }
-  }
-
-  Future<void> _submit() async {
-    if (_submitting) return;
-    setState(() => _submitting = true);
-    final app = context.read<AppProvider>();
-    await app.addReview(
-        widget.book.id, _selectedRating, _commentCtrl.text.trim());
-    widget.onReviewAdded();
-    _commentCtrl.clear();
-    await _load();
-    setState(() => _submitting = false);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final s = S.of(context);
-    if (_reviews == null) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        if (_hasReturned == true && _alreadyReviewed == false) ...[
-          _ReviewForm(
-            selectedRating: _selectedRating,
-            controller: _commentCtrl,
-            submitting: _submitting,
-            onRatingChanged: (r) => setState(() => _selectedRating = r),
-            onSubmit: _submit,
-            s: s,
-          ),
-          const SizedBox(height: 16),
-        ] else if (_alreadyReviewed == true) ...[
-          _InfoBanner(
-              text: s.alreadyReviewed,
-              icon: Icons.check_circle_outline,
-              color: AppColors.green),
-          const SizedBox(height: 12),
-        ] else if (_hasReturned == false) ...[
-          _InfoBanner(
-              text: s.reviewEligible,
-              icon: Icons.info_outline,
-              color: AppColors.blue),
-          const SizedBox(height: 12),
-        ],
-        if (_reviews!.isEmpty)
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 24),
-              child: Text(s.noReviews,
-                  style: const TextStyle(color: Colors.grey)),
-            ),
-          )
-        else
-          ..._reviews!.map((r) {
-            final isHighlighted = r.id == widget.highlightId;
-            return _ReviewCard(
-              key: isHighlighted ? _highlightKey : ValueKey(r.id),
-              review: r,
-              bookId: widget.book.id,
-              onChanged: _load,
-              highlighted: isHighlighted,
-            );
-          }),
-      ],
-    );
-  }
-}
-
-class _ReviewForm extends StatelessWidget {
-  final int selectedRating;
-  final TextEditingController controller;
-  final bool submitting;
-  final ValueChanged<int> onRatingChanged;
-  final VoidCallback onSubmit;
-  final S s;
-  const _ReviewForm({
-    required this.selectedRating,
-    required this.controller,
-    required this.submitting,
-    required this.onRatingChanged,
-    required this.onSubmit,
-    required this.s,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(s.writeReview,
-              style: const TextStyle(
-                  fontWeight: FontWeight.w700, fontSize: 14)),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(
-              5,
-              (i) => GestureDetector(
-                onTap: () => onRatingChanged(i + 1),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Icon(
-                    i < selectedRating
-                        ? Icons.star_rounded
-                        : Icons.star_outline_rounded,
-                    size: 34,
-                    color: Colors.amber,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: controller,
-            maxLines: 3,
-            decoration: InputDecoration(
-              hintText: s.yourComment,
-              filled: true,
-              fillColor: Theme.of(context).scaffoldBackgroundColor,
-              border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide.none),
-              contentPadding: const EdgeInsets.all(12),
-            ),
-          ),
-          const SizedBox(height: 12),
-          AccentButton(
-            label: s.submitReview,
-            icon: Icons.send_outlined,
-            onTap: onSubmit,
-            loading: submitting,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ReviewCard extends StatefulWidget {
-  final ReviewModel review;
-  final String bookId;
-  final VoidCallback onChanged;
-  final bool highlighted;
-  const _ReviewCard(
-      {super.key,
-      required this.review,
-      required this.bookId,
-      required this.onChanged,
-      this.highlighted = false});
-
-  @override
-  State<_ReviewCard> createState() => _ReviewCardState();
-}
-
-class _ReviewCardState extends State<_ReviewCard> {
-  Future<void> _showEditSheet() async {
-    final s = S.read(context);
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => _EditTextSheet(
-        initialText: widget.review.comment,
-        title: s.editComment,
-        maxLines: 4,
-        onSave: (text) async {
-          await context.read<AppProvider>()
-              .updateReview(widget.bookId, widget.review.id, text);
-          if (mounted) widget.onChanged();
-        },
-      ),
-    );
-  }
-
-  Future<void> _confirmDelete() async {
-    final s = S.of(context);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(s.delete),
-        content: Text(s.deleteCommentConfirm),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(s.cancel)),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(s.delete,
-                style: const TextStyle(color: AppColors.red)),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true && mounted) {
-      await context
-          .read<AppProvider>()
-          .deleteReview(widget.bookId, widget.review.id);
-      widget.onChanged();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final app = context.read<AppProvider>();
-    final s = S.of(context);
-    final review = widget.review;
-    final isOwner = app.currentUser?.id == review.studentId;
-    final canModify = isOwner || app.role == 'librarian';
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: AppCard(
-        borderColor: widget.highlighted ? AppColors.accent.withOpacity(0.6) : null,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(review.studentAvatar,
-                    style: const TextStyle(fontSize: 20)),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(review.studentName,
-                      style: const TextStyle(fontWeight: FontWeight.w700)),
-                ),
-                Row(
-                    children: List.generate(
-                  5,
-                  (i) => Icon(
-                    i < review.rating
-                        ? Icons.star_rounded
-                        : Icons.star_outline_rounded,
-                    size: 14,
-                    color: Colors.amber,
-                  ),
-                )),
-                if (canModify) ...[
-                  const SizedBox(width: 4),
-                  PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert, size: 18),
-                    padding: EdgeInsets.zero,
-                    onSelected: (v) {
-                      if (v == 'edit') _showEditSheet();
-                      if (v == 'delete') _confirmDelete();
-                    },
-                    itemBuilder: (_) => [
-                      if (isOwner)
-                        PopupMenuItem(
-                            value: 'edit', child: Text(s.editComment)),
-                      PopupMenuItem(
-                          value: 'delete',
-                          child: Text(s.delete,
-                              style:
-                                  const TextStyle(color: AppColors.red))),
-                    ],
-                  ),
-                ],
-              ],
-            ),
-            if (review.comment.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(review.comment,
-                  style: const TextStyle(fontSize: 13, height: 1.5)),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Tab 3: Questions ──────────────────────────────────────────────────────────
-
-class _QuestionsTab extends StatefulWidget {
-  final BookModel book;
-  final String? highlightId;
-  const _QuestionsTab({required this.book, this.highlightId});
-
-  @override
-  State<_QuestionsTab> createState() => _QuestionsTabState();
-}
-
-class _QuestionsTabState extends State<_QuestionsTab> {
-  List<QuestionModel>? _questions;
-  final _questionCtrl = TextEditingController();
-  bool _submitting    = false;
-  final _highlightKey = GlobalKey();
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  @override
-  void dispose() {
-    _questionCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _load() async {
-    final app = context.read<AppProvider>();
-    final q   = await app.fetchQuestions(widget.book.id);
-    if (mounted) {
-      setState(() => _questions = q);
-      if (widget.highlightId != null) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          final ctx = _highlightKey.currentContext;
-          if (ctx != null) {
-            Scrollable.ensureVisible(ctx,
-                duration: const Duration(milliseconds: 400), alignment: 0.2);
-          }
-        });
-      }
-    }
-  }
-
-  Future<void> _submit() async {
-    final text = _questionCtrl.text.trim();
-    if (text.isEmpty || _submitting) return;
-    setState(() => _submitting = true);
-    final app = context.read<AppProvider>();
-    await app.addQuestion(widget.book.id, text);
-    _questionCtrl.clear();
-    await _load();
-    setState(() => _submitting = false);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final s = S.of(context);
-    if (_questions == null) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        AppCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(s.askQuestion,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w700, fontSize: 14)),
-              const SizedBox(height: 10),
-              TextField(
-                controller: _questionCtrl,
-                maxLines: 3,
-                decoration: InputDecoration(
-                  hintText: s.yourQuestion,
-                  filled: true,
-                  fillColor: Theme.of(context).scaffoldBackgroundColor,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide.none),
-                  contentPadding: const EdgeInsets.all(12),
-                ),
-              ),
-              const SizedBox(height: 10),
-              AccentButton(
-                label: s.submitQuestion,
-                icon: Icons.help_outline,
-                onTap: _submit,
-                loading: _submitting,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        if (_questions!.isEmpty)
-          Center(
-              child: Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text(s.noQuestions,
-                style: const TextStyle(color: Colors.grey)),
-          ))
-        else
-          ..._questions!.map((q) {
-            final isHighlighted = q.id == widget.highlightId;
-            return _QuestionCard(
-              key: isHighlighted ? _highlightKey : ValueKey(q.id),
-              question: q,
-              bookId: widget.book.id,
-              onAnswered: _load,
-              highlighted: isHighlighted,
-            );
-          }),
-      ],
-    );
-  }
-}
-
-class _QuestionCard extends StatefulWidget {
-  final QuestionModel question;
-  final String bookId;
-  final VoidCallback onAnswered;
-  final bool highlighted;
-  const _QuestionCard(
-      {super.key,
-      required this.question,
-      required this.bookId,
-      required this.onAnswered,
-      this.highlighted = false});
-
-  @override
-  State<_QuestionCard> createState() => _QuestionCardState();
-}
-
-class _QuestionCardState extends State<_QuestionCard> {
-  bool _showAnswerForm = false;
-  final _answerCtrl   = TextEditingController();
-  bool _submitting    = false;
-
-  @override
-  void dispose() {
-    _answerCtrl.dispose();
-    super.dispose();
-  }
-
-  // ── Submit new answer ──────────────────────────────────────────────────────
-
-  Future<void> _submitAnswer() async {
-    final text = _answerCtrl.text.trim();
-    if (text.isEmpty || _submitting) return;
-    setState(() => _submitting = true);
-    await context
-        .read<AppProvider>()
-        .answerQuestion(widget.bookId, widget.question.id, text);
-    _answerCtrl.clear();
-    setState(() { _showAnswerForm = false; _submitting = false; });
-    widget.onAnswered();
-  }
-
-  // ── Edit question ──────────────────────────────────────────────────────────
-
-  Future<void> _editQuestion() async {
-    final s = S.read(context);
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => _EditTextSheet(
-        initialText: widget.question.question,
-        title: s.editQuestion,
-        maxLines: 3,
-        onSave: (text) async {
-          await context.read<AppProvider>()
-              .updateQuestion(widget.bookId, widget.question.id, text);
-          if (mounted) widget.onAnswered();
-        },
-      ),
-    );
-  }
-
-  // ── Delete question ────────────────────────────────────────────────────────
-
-  Future<void> _deleteQuestion() async {
-    final s = S.read(context);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(s.delete),
-        content: Text(s.deleteQuestionConfirm),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(s.cancel)),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(s.delete, style: const TextStyle(color: AppColors.red)),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true && mounted) {
-      await context.read<AppProvider>()
-          .deleteQuestion(widget.bookId, widget.question.id);
-      widget.onAnswered();
-    }
-  }
-
-  // ── Edit answer ────────────────────────────────────────────────────────────
-
-  Future<void> _editAnswer() async {
-    final s = S.read(context);
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => _EditTextSheet(
-        initialText: widget.question.answer ?? '',
-        title: s.editAnswer,
-        maxLines: 4,
-        onSave: (text) async {
-          await context.read<AppProvider>()
-              .updateAnswer(widget.bookId, widget.question.id, text);
-          if (mounted) widget.onAnswered();
-        },
-      ),
-    );
-  }
-
-  // ── Delete answer ──────────────────────────────────────────────────────────
-
-  Future<void> _deleteAnswer() async {
-    final s = S.read(context);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(s.deleteAnswer),
-        content: Text(s.deleteAnswerConfirm),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(s.cancel)),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(s.delete, style: const TextStyle(color: AppColors.red)),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true && mounted) {
-      await context.read<AppProvider>()
-          .deleteAnswer(widget.bookId, widget.question.id);
-      widget.onAnswered();
-    }
-  }
-
-  // ── Build ──────────────────────────────────────────────────────────────────
-
-  @override
-  Widget build(BuildContext context) {
-    final s   = S.of(context);
-    final app = context.read<AppProvider>();
-    final q   = widget.question;
-
-    final isQuestionOwner = app.currentUser?.id == q.studentId;
-    final isAnswerOwner   = app.currentUser?.id == q.answeredById;
-    final isAdmin         = app.role == 'librarian';
-    final canModifyQ      = isQuestionOwner || isAdmin;
-    final canModifyAnswer = isAnswerOwner || isAdmin;
-    // Answer button only visible to librarian (admin answers questions)
-    final canAnswer       = isAdmin && !q.isAnswered;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: widget.highlighted
-                ? AppColors.accent.withOpacity(0.6)
-                : q.isAnswered
-                    ? AppColors.green.withOpacity(0.35)
-                    : Theme.of(context).dividerColor.withOpacity(0.5),
-            width: widget.highlighted ? 1.5 : 1.0,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Question header ────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 14, 10, 0),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Avatar circle
-                  Container(
-                    width: 36, height: 36,
-                    decoration: BoxDecoration(
-                      color: AppColors.blue.withOpacity(0.12),
-                      shape: BoxShape.circle,
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      q.studentAvatar,
-                      style: const TextStyle(fontSize: 18),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  // Name + date
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(q.studentName,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w700, fontSize: 13),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis),
-                        const SizedBox(height: 2),
-                        Text(
-                          _formatDate(q.createdAt),
-                          style: TextStyle(
-                              fontSize: 10, color: Colors.grey.shade500),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Answered badge
-                  StatusBadge(
-                    label: q.isAnswered ? s.answeredBy : s.unanswered,
-                    color: q.isAnswered ? AppColors.green : Colors.grey,
-                  ),
-                  // Question 3-dot menu
-                  if (canModifyQ)
-                    PopupMenuButton<String>(
-                      icon: Icon(Icons.more_vert,
-                          size: 18, color: Colors.grey.shade500),
-                      padding: EdgeInsets.zero,
-                      onSelected: (v) {
-                        if (v == 'edit') _editQuestion();
-                        if (v == 'delete') _deleteQuestion();
-                      },
-                      itemBuilder: (_) => [
-                        if (isQuestionOwner && !q.isAnswered)
-                          PopupMenuItem(
-                              value: 'edit', child: Text(s.editQuestion)),
-                        PopupMenuItem(
-                            value: 'delete',
-                            child: Text(s.delete,
-                                style: const TextStyle(color: AppColors.red))),
-                      ],
-                    ),
-                ],
-              ),
-            ),
-
-            // ── Question text ──────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
-              child: Text(q.question,
-                  style: const TextStyle(fontSize: 13, height: 1.6)),
-            ),
-
-            // ── Answer section ─────────────────────────────────────
-            if (q.isAnswered) ...[
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 14),
-                child: Divider(height: 20),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(14, 0, 10, 14),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.reply_rounded,
-                        size: 16, color: AppColors.green),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(q.answeredBy ?? '',
-                              style: const TextStyle(
-                                  fontSize: 11,
-                                  color: AppColors.green,
-                                  fontWeight: FontWeight.w700)),
-                          const SizedBox(height: 4),
-                          Text(q.answer!,
-                              style: const TextStyle(
-                                  fontSize: 13, height: 1.6)),
-                        ],
-                      ),
-                    ),
-                    // Answer 3-dot menu
-                    if (canModifyAnswer)
-                      PopupMenuButton<String>(
-                        icon: Icon(Icons.more_vert,
-                            size: 18, color: Colors.grey.shade500),
-                        padding: EdgeInsets.zero,
-                        onSelected: (v) {
-                          if (v == 'edit') _editAnswer();
-                          if (v == 'delete') _deleteAnswer();
-                        },
-                        itemBuilder: (_) => [
-                          PopupMenuItem(
-                              value: 'edit', child: Text(s.editAnswer)),
-                          PopupMenuItem(
-                              value: 'delete',
-                              child: Text(s.deleteAnswer,
-                                  style: const TextStyle(color: AppColors.red))),
-                        ],
-                      ),
-                  ],
-                ),
-              ),
-            ] else ...[
-              // ── Answer form (librarian only) ─────────────────────
-              if (canAnswer)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
-                  child: !_showAnswerForm
-                      ? TextButton.icon(
-                          onPressed: () =>
-                              setState(() => _showAnswerForm = true),
-                          icon: const Icon(Icons.reply_rounded, size: 16),
-                          label: Text(s.writeAnswer,
-                              style: const TextStyle(fontSize: 12)),
-                          style: TextButton.styleFrom(
-                              foregroundColor: AppColors.blue,
-                              padding: EdgeInsets.zero),
-                        )
-                      : Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            TextField(
-                              controller: _answerCtrl,
-                              maxLines: 3,
-                              autofocus: true,
-                              decoration: InputDecoration(
-                                hintText: s.yourAnswer,
-                                filled: true,
-                                fillColor:
-                                    Theme.of(context).scaffoldBackgroundColor,
-                                border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                    borderSide: BorderSide.none),
-                                contentPadding: const EdgeInsets.all(10),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: AccentButton(
-                                    label: s.submitAnswer,
-                                    icon: Icons.send_outlined,
-                                    onTap: _submitAnswer,
-                                    loading: _submitting,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                TextButton(
-                                  onPressed: () => setState(() {
-                                    _showAnswerForm = false;
-                                    _answerCtrl.clear();
-                                  }),
-                                  child: Text(s.cancel),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                )
-              else
-                const SizedBox(height: 14),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _formatDate(DateTime dt) {
-    return '${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')}.${dt.year}';
-  }
-}
-
-// ── Reusable edit bottom-sheet ────────────────────────────────────────────────
-// Uses StatefulWidget so the controller is tied to widget lifecycle and
-// disposed only after the closing animation fully unmounts the widget.
-
-class _EditTextSheet extends StatefulWidget {
-  final String initialText;
-  final String title;
-  final int maxLines;
-  final Future<void> Function(String text) onSave;
-
-  const _EditTextSheet({
-    required this.initialText,
-    required this.title,
-    required this.maxLines,
-    required this.onSave,
-  });
-
-  @override
-  State<_EditTextSheet> createState() => _EditTextSheetState();
-}
-
-class _EditTextSheetState extends State<_EditTextSheet> {
-  late final TextEditingController _ctrl;
-  bool _saving = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = TextEditingController(text: widget.initialText);
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-        left: 16, right: 16, top: 20,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(widget.title,
-              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _ctrl,
-            maxLines: widget.maxLines,
-            autofocus: true,
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: Theme.of(context).scaffoldBackgroundColor,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide.none,
-              ),
-              contentPadding: const EdgeInsets.all(12),
-            ),
-          ),
-          const SizedBox(height: 12),
-          AccentButton(
-            label: S.read(context).save,
-            icon: Icons.check,
-            loading: _saving,
-            onTap: () async {
-              final text = _ctrl.text.trim();
-              if (text.isEmpty || _saving) return;
-              setState(() => _saving = true);
-              await widget.onSave(text);
-              if (mounted) Navigator.pop(context);
-            },
-          ),
-          const SizedBox(height: 8),
-        ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _InfoBanner extends StatelessWidget {
-  final String text;
-  final IconData icon;
-  final Color color;
-  const _InfoBanner(
-      {required this.text, required this.icon, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(width: 8),
-          Expanded(
-              child: Text(text,
-                  style: TextStyle(
-                      fontSize: 12,
-                      color: color,
-                      fontWeight: FontWeight.w600))),
-        ],
-      ),
-    );
-  }
-}
-

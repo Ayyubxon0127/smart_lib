@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../constants.dart';
 import '../../l10n.dart';
 import '../../models/book_market_model.dart';
 import '../../providers/app_provider.dart';
-import 'book_market_screen.dart' show showAddListingSheet;
+import 'market_add_listing_sheet.dart' show showAddListingSheet;
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Detail Screen
@@ -56,15 +57,17 @@ class _BookMarketDetailScreenState
       });
     }
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: AppColors.darkBg,
+      backgroundColor: isDark ? AppColors.darkBg : AppColors.lightBg,
       body: CustomScrollView(
         slivers: [
           // ── Hero Image AppBar ───────────────────────────────────────
           SliverAppBar(
             expandedHeight: 280,
             pinned: true,
-            backgroundColor: AppColors.darkBg,
+            backgroundColor: isDark ? AppColors.darkBg : AppColors.lightBg,
             leading: Padding(
               padding: const EdgeInsets.all(8),
               child: _CircleBtn(
@@ -115,7 +118,7 @@ class _BookMarketDetailScreenState
                         end: Alignment.bottomCenter,
                         colors: [
                           Colors.transparent,
-                          AppColors.darkBg.withOpacity(0.9),
+                          isDark ? AppColors.darkBg.withOpacity(0.9) : const Color(0xFFF4F6FA).withOpacity(0.95),
                         ],
                         stops: const [0.5, 1.0],
                       ),
@@ -189,25 +192,22 @@ class _BookMarketDetailScreenState
                   const SizedBox(height: 4),
                   Text(
                     _item.author,
-                    style: const TextStyle(
-                        fontSize: 15, color: Colors.white60),
+                    style: TextStyle(
+                        fontSize: 15, color: isDark ? Colors.white60 : const Color(0xFF6B7280)),
                   ),
                   const SizedBox(height: 14),
 
-                  // ── Price & Condition row ─────────────────────────
-                  Row(
+                  // ── Price & Condition ─────────────────────────────
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 8,
                     children: [
-                      // Price
                       _PriceBadge(item: _item),
-                      const SizedBox(width: 12),
-                      // Condition
                       _ConditionBadge(condition: _item.condition, s: s),
-                      if (_item.category.isNotEmpty) ...[
-                        const SizedBox(width: 12),
+                      if (_item.category.isNotEmpty)
                         _SmallChip(
                             label: _item.category,
                             color: AppColors.purple),
-                      ],
                     ],
                   ),
                   const SizedBox(height: 20),
@@ -218,15 +218,15 @@ class _BookMarketDetailScreenState
                     const SizedBox(height: 8),
                     Text(
                       _item.description,
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 14,
-                          color: Colors.white70,
+                          color: isDark ? Colors.white70 : const Color(0xFF374151),
                           height: 1.6),
                     ),
                     const SizedBox(height: 20),
                   ],
 
-                  const Divider(color: AppColors.darkBorder),
+                  Divider(color: isDark ? AppColors.darkBorder : const Color(0xFFE2E8F0)),
                   const SizedBox(height: 16),
 
                   // ── Seller info ───────────────────────────────────
@@ -254,23 +254,31 @@ class _BookMarketDetailScreenState
       bottomNavigationBar: !isOwner && !isSold
           ? _BottomContactBar(item: _item, s: s)
           : isOwner
-              ? _OwnerBottomBar(item: _item, app: app, s: s,
-                  onAdd: () => showAddListingSheet(context, app, s))
+              ? _OwnerBottomBar(item: _item, app: app, s: s)
               : null,
     );
   }
 
   void _showOwnerMenu(
       BuildContext ctx, AppProvider app, S s, bool isOwner) {
+    final isDark = Theme.of(ctx).brightness == Brightness.dark;
     showModalBottomSheet(
       context: ctx,
-      backgroundColor: AppColors.darkCard,
+      backgroundColor: isDark ? AppColors.darkCard : Colors.white,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           const SizedBox(height: 8),
+          ListTile(
+            leading: const Icon(Icons.edit_rounded, color: AppColors.accent),
+            title: Text(s.editListing),
+            onTap: () async {
+              Navigator.pop(ctx);
+              await showAddListingSheet(ctx, app, s, existing: _item);
+            },
+          ),
           if (_item.status == 'available')
             ListTile(
               leading: const Icon(Icons.check_circle_outline_rounded,
@@ -334,13 +342,16 @@ class _BookMarketDetailScreenState
     );
   }
 
-  Widget _imagePlaceholder() => Container(
-        color: AppColors.darkSurface,
-        child: const Center(
-          child: Icon(Icons.menu_book_rounded,
-              color: Colors.white12, size: 72),
-        ),
-      );
+  Widget _imagePlaceholder() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      color: isDark ? AppColors.darkSurface : const Color(0xFFF4F6FA),
+      child: Center(
+        child: Icon(Icons.menu_book_rounded,
+            color: isDark ? Colors.white12 : Colors.black12, size: 72),
+      ),
+    );
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -356,12 +367,13 @@ class _SellerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.darkCard,
+        color: isDark ? AppColors.darkCard : Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.darkBorder),
+        border: Border.all(color: isDark ? AppColors.darkBorder : const Color(0xFFE2E8F0)),
       ),
       child: Row(
         children: [
@@ -412,12 +424,12 @@ class _SellerCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Row(
                   children: [
-                    const Icon(Icons.phone_outlined,
-                        size: 12, color: Colors.white38),
+                    Icon(Icons.phone_outlined,
+                        size: 12, color: isDark ? Colors.white38 : const Color(0xFF9CA3AF)),
                     const SizedBox(width: 4),
                     Text(item.contactPhone,
-                        style: const TextStyle(
-                            fontSize: 13, color: Colors.white54)),
+                        style: TextStyle(
+                            fontSize: 13, color: isDark ? Colors.white54 : const Color(0xFF6B7280))),
                   ],
                 ),
               ],
@@ -440,6 +452,7 @@ class _SimilarSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final app = context.watch<AppProvider>();
     final similar = app.marketItems
         .where((m) =>
@@ -475,9 +488,9 @@ class _SimilarSection extends StatelessWidget {
                 child: Container(
                   width: 120,
                   decoration: BoxDecoration(
-                    color: AppColors.darkCard,
+                    color: isDark ? AppColors.darkCard : Colors.white,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.darkBorder),
+                    border: Border.all(color: isDark ? AppColors.darkBorder : const Color(0xFFE2E8F0)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -495,8 +508,8 @@ class _SimilarSection extends StatelessWidget {
                                   ? Image.network(m.imageUrl!,
                                       fit: BoxFit.cover,
                                       errorBuilder: (_, __, ___) =>
-                                          _placeholder())
-                                  : _placeholder(),
+                                          _placeholder(isDark))
+                                  : _placeholder(isDark),
                             ),
                             Positioned(
                               bottom: 4, left: 4,
@@ -538,11 +551,11 @@ class _SimilarSection extends StatelessWidget {
     );
   }
 
-  Widget _placeholder() => Container(
-        color: AppColors.darkSurface,
-        child: const Center(
+  Widget _placeholder(bool isDark) => Container(
+        color: isDark ? AppColors.darkSurface : const Color(0xFFF4F6FA),
+        child: Center(
           child: Icon(Icons.menu_book_rounded,
-              color: Colors.white24, size: 24),
+              color: isDark ? Colors.white24 : Colors.black12, size: 24),
         ),
       );
 }
@@ -558,38 +571,43 @@ class _BottomContactBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final hasTg = item.contactTelegram != null &&
+        item.contactTelegram!.trim().isNotEmpty;
     return Container(
       padding: EdgeInsets.fromLTRB(
           20, 12, 20, MediaQuery.of(context).padding.bottom + 12),
-      decoration: const BoxDecoration(
-        color: AppColors.darkCard,
-        border: Border(top: BorderSide(color: AppColors.darkBorder)),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : Colors.white,
+        border: Border(top: BorderSide(color: isDark ? AppColors.darkBorder : const Color(0xFFE2E8F0))),
       ),
       child: Row(
         children: [
-          // Telegram button
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: () => _copyTelegram(context),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.blue,
-                side: const BorderSide(
-                    color: AppColors.blue, width: 1.5),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                padding: const EdgeInsets.symmetric(vertical: 12),
+          // Telegram button — only if username is set
+          if (hasTg) ...[
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => _openTelegram(context),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.blue,
+                  side: const BorderSide(
+                      color: AppColors.blue, width: 1.5),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                icon: const Icon(Icons.send_rounded, size: 18),
+                label: Text(s.telegramSeller,
+                    style: const TextStyle(fontWeight: FontWeight.w700)),
               ),
-              icon: const Icon(Icons.send_rounded, size: 18),
-              label: Text(s.telegramSeller,
-                  style: const TextStyle(fontWeight: FontWeight.w700)),
             ),
-          ),
-          const SizedBox(width: 12),
+            const SizedBox(width: 12),
+          ],
           // Call button
           Expanded(
-            flex: 2,
+            flex: hasTg ? 2 : 1,
             child: ElevatedButton.icon(
-              onPressed: () => _copyPhone(context),
+              onPressed: () => _callPhone(context),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.accent,
                 foregroundColor: Colors.white,
@@ -599,7 +617,7 @@ class _BottomContactBar extends StatelessWidget {
               ),
               icon: const Icon(Icons.phone_rounded, size: 18),
               label: Text(
-                '${item.contactPhone}',
+                item.contactPhone,
                 style: const TextStyle(fontWeight: FontWeight.w700),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -610,22 +628,62 @@ class _BottomContactBar extends StatelessWidget {
     );
   }
 
-  void _copyPhone(BuildContext context) {
-    Clipboard.setData(ClipboardData(text: item.contactPhone));
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(s.phoneCopied),
-      backgroundColor: AppColors.green,
-      duration: const Duration(seconds: 2),
-    ));
+  Future<void> _callPhone(BuildContext context) async {
+    final uri = Uri.parse('tel:${item.contactPhone}');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else {
+      // Fallback: copy to clipboard
+      await Clipboard.setData(ClipboardData(text: item.contactPhone));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(s.phoneCopied),
+          backgroundColor: AppColors.green,
+          duration: const Duration(seconds: 2),
+        ));
+      }
+    }
   }
 
-  void _copyTelegram(BuildContext context) {
-    Clipboard.setData(ClipboardData(text: item.contactPhone));
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(s.telegramCopied),
-      backgroundColor: AppColors.blue,
-      duration: const Duration(seconds: 2),
-    ));
+  Future<void> _openTelegram(BuildContext context) async {
+    final username = item.contactTelegram!.trim().replaceAll('@', '');
+
+    // First try to open Telegram app directly via deep link
+    final appUri = Uri.parse('tg://resolve?domain=$username');
+    final webUri = Uri.parse('https://t.me/$username');
+
+    bool launched = false;
+
+    try {
+      launched = await launchUrl(appUri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      launched = false;
+    }
+
+    if (!launched) {
+      try {
+        launched = await launchUrl(webUri, mode: LaunchMode.externalApplication);
+      } catch (_) {
+        launched = false;
+      }
+    }
+
+    if (!launched) {
+      // Last resort: open in browser
+      try {
+        launched = await launchUrl(webUri, mode: LaunchMode.platformDefault);
+      } catch (_) {
+        launched = false;
+      }
+    }
+
+    if (!launched && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Telegram ilovasini ochib bo\'lmadi'),
+        backgroundColor: AppColors.blue,
+        duration: Duration(seconds: 2),
+      ));
+    }
   }
 }
 
@@ -637,68 +695,45 @@ class _OwnerBottomBar extends StatelessWidget {
   final BookMarketItem item;
   final AppProvider app;
   final S s;
-  final VoidCallback onAdd;
   const _OwnerBottomBar(
       {required this.item,
       required this.app,
-      required this.s,
-      required this.onAdd});
+      required this.s});
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isSold = item.status == 'sold';
     return Container(
       padding: EdgeInsets.fromLTRB(
           20, 12, 20, MediaQuery.of(context).padding.bottom + 12),
-      decoration: const BoxDecoration(
-        color: AppColors.darkCard,
-        border: Border(top: BorderSide(color: AppColors.darkBorder)),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : Colors.white,
+        border: Border(top: BorderSide(color: isDark ? AppColors.darkBorder : const Color(0xFFE2E8F0))),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: onAdd,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.accent,
-                side: const BorderSide(color: AppColors.accent),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-              icon: const Icon(Icons.add_rounded, size: 18),
-              label: Text(s.addListing,
-                  style: const TextStyle(fontWeight: FontWeight.w700)),
-            ),
+      child: SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: () => isSold
+              ? app.updateMarketItemStatus(item.id, 'available')
+              : app.updateMarketItemStatus(item.id, 'sold'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: isSold ? AppColors.blue : AppColors.green,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+            padding: const EdgeInsets.symmetric(vertical: 12),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: ElevatedButton.icon(
-              onPressed: () => isSold
-                  ? app.updateMarketItemStatus(item.id, 'available')
-                  : app.updateMarketItemStatus(item.id, 'sold'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    isSold ? AppColors.blue : AppColors.green,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-              icon: Icon(
-                isSold
-                    ? Icons.refresh_rounded
-                    : Icons.check_rounded,
-                size: 18,
-              ),
-              label: Text(
-                isSold ? s.markAsAvailableAgain : s.markAsDone,
-                style: const TextStyle(fontWeight: FontWeight.w700),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
+          icon: Icon(
+            isSold ? Icons.refresh_rounded : Icons.check_rounded,
+            size: 18,
           ),
-        ],
+          label: Text(
+            isSold ? s.markAsAvailableAgain : s.markAsDone,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
       ),
     );
   }

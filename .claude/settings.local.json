@@ -6,7 +6,19 @@
       "Bash(flutter devices:*)",
       "Bash(flutter analyze:*)",
       "Bash(flutter pub:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(cd:*)",
+      "Bash(wc -l /c/Users/Ayyubxon/Desktop/smart_kutubxonwww/smart_kutubxona/lib/screens/librarian/*.dart /c/Users/Ayyubxon/Desktop/smart_kutubxonwww/smart_kutubxona/lib/screens/student/*.dart /c/Users/Ayyubxon/Desktop/smart_kutubxonwww/smart_kutubxona/lib/models/*.dart /c/Users/Ayyubxon/Desktop/smart_kutubxonwww/smart_kutubxona/lib/widgets/*.dart)",
+      "Bash(firebase deploy:*)",
+      "Bash(python3 -c \":*)",
+      "Bash(python -c \"from PIL import Image, ImageDraw, ImageFont; print\\(''pillow ok''\\)\")",
+      "Bash(flutter test:*)",
+      "Bash(dart run:*)",
+      "Bash(firebase functions:list)",
+      "Bash(firebase functions:list --project smart-kutubxona)",
+      "Bash(firebase use:*)",
+      "Bash(firebase functions:list --project smart-kutubxona --json)",
+      "Bash(dart analyze:*)"
     ]
   }
 }

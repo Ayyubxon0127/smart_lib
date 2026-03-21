@@ -1,0 +1,156 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Helpers ──────────────────────────────────────────────────────────────
+    function isAuth()       { return request.auth != null; }
+    function isOwner(uid)   { return isAuth() && request.auth.uid == uid; }
+    function isLibrarian()  {
+      return isAuth() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'librarian';
+    }
+
+    // ─── Users ────────────────────────────────────────────────────────────────
+    match /users/{userId} {
+      allow read:   if isOwner(userId) || isLibrarian();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || isLibrarian();
+      allow delete: if isLibrarian();
+
+      match /favorites/{bookId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // ─── Books ────────────────────────────────────────────────────────────────
+    match /books/{bookId} {
+      allow read: if isAuth();
+      allow write: if isLibrarian();
+      // Any authenticated user can update only rating+reviewCount (review aggregation)
+      allow update: if isAuth() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating', 'reviewCount']);
+
+      match /reviews/{reviewId} {
+        allow read: if isAuth();
+        allow create: if isAuth() && (
+          request.resource.data.userId == request.auth.uid ||
+          request.resource.data.studentId == request.auth.uid
+        );
+        allow update, delete: if isAuth() && (
+          resource.data.userId == request.auth.uid ||
+          resource.data.studentId == request.auth.uid ||
+          isLibrarian()
+        );
+      }
+
+      match /discussions/{discussionId} {
+        allow read: if isAuth();
+        allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
+        allow update, delete: if isAuth() &&
+          (resource.data.userId == request.auth.uid || isLibrarian());
+
+        match /answer/{doc} {
+          allow read: if isAuth();
+          allow write: if isLibrarian();
+        }
+      }
+
+      // Q&A system (books/{bookId}/questions + /answers)
+      match /questions/{questionId} {
+        allow read: if isAuth();
+        allow create: if isAuth() && request.resource.data.studentId == request.auth.uid;
+        allow update, delete: if isAuth() &&
+          (resource.data.studentId == request.auth.uid || isLibrarian());
+
+        match /answers/{answerId} {
+          allow read: if isAuth();
+          allow create: if isAuth();
+          allow update, delete: if isAuth() &&
+            (resource.data.answerId == request.auth.uid || isLibrarian());
+        }
+      }
+    }
+
+    // ─── Reservations ─────────────────────────────────────────────────────────
+    match /reservations/{resId} {
+      allow read:   if isAuth() &&
+        (resource.data.studentId == request.auth.uid || isLibrarian());
+      allow create: if isAuth() && request.resource.data.studentId == request.auth.uid;
+      allow update: if isAuth() &&
+        (resource.data.studentId == request.auth.uid || isLibrarian());
+      allow delete: if isLibrarian();
+    }
+
+    // ─── Rooms ────────────────────────────────────────────────────────────────
+    match /rooms/{roomId} {
+      allow read:  if isAuth();
+      allow write: if isLibrarian();
+    }
+
+    // ─── Room blocks ──────────────────────────────────────────────────────────
+    match /room_blocks/{blockId} {
+      allow read:  if isAuth();
+      allow write: if isLibrarian();
+    }
+
+    // ─── Seat bookings ────────────────────────────────────────────────────────
+    // Any authenticated user can READ (needed for real-time occupancy counts).
+    // Write only your own bookings; librarians can update any booking status.
+    match /seat_bookings/{bookingId} {
+      allow read:   if isAuth();
+      allow create: if isAuth() && request.resource.data.studentId == request.auth.uid;
+      allow update: if isAuth() &&
+        (resource.data.studentId == request.auth.uid || isLibrarian());
+      allow delete: if isLibrarian();
+    }
+
+    // ─── Announcements ────────────────────────────────────────────────────────
+    match /announcements/{annoId} {
+      allow read:   if isAuth();
+      allow create, delete: if isLibrarian();
+      allow update: if isLibrarian() ||
+        // students can only update readBy field
+        (isAuth() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy']));
+    }
+
+    // ─── Blocked days ─────────────────────────────────────────────────────────
+    match /blockedDays/{dayId} {
+      allow read:  if isAuth();
+      allow write: if isLibrarian();
+    }
+
+    // ─── Book market ──────────────────────────────────────────────────────────
+    match /book_market/{itemId} {
+      allow read: if isAuth();
+      allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuth() && (
+        resource.data.userId == request.auth.uid ||
+        isLibrarian() ||
+        // any authenticated user can increment view_count only
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['view_count'])
+      );
+      allow delete: if isAuth() &&
+        (resource.data.userId == request.auth.uid || isLibrarian());
+    }
+
+    // ─── Notifications ────────────────────────────────────────────────────────
+    match /notifications/{notifId} {
+      allow read:   if isAuth() && resource.data.userId == request.auth.uid;
+      allow create: if isAuth();
+      allow update: if isAuth() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuth() && resource.data.userId == request.auth.uid;
+    }
+
+    // ─── Settings (public read) ───────────────────────────────────────────────
+    match /settings/{docId} {
+      allow read:  if isAuth();
+      allow write: if isLibrarian();
+    }
+
+    // ─── FAQ ──────────────────────────────────────────────────────────────────
+    match /faq/{faqId} {
+      allow read:  if isAuth();
+      allow write: if isLibrarian();
+    }
+  }
+}

@@ -21,8 +21,18 @@ class LibrarianMain extends StatefulWidget {
 
 class _LibrarianMainState extends State<LibrarianMain> {
   int _index = 0;
+  String? _reservationInitialFilter;
+  int _reservationNavSeed = 0;
 
-  void _goTo(int index) => setState(() => _index = index);
+  void _goTo(LibDashboardNavIntent intent) {
+    setState(() {
+      _index = intent.index;
+      if (intent.index == kLibResIndex) {
+        _reservationInitialFilter = intent.reservationFilter;
+        _reservationNavSeed++;
+      }
+    });
+  }
 
   Future<void> _onBackPressed() async {
     if (_index != 0) {
@@ -67,12 +77,32 @@ class _LibrarianMainState extends State<LibrarianMain> {
 
   @override
   Widget build(BuildContext context) {
-    context.watch<AppProvider>();
+    final app = context.watch<AppProvider>();
     final s = S.of(context);
+
+    // ── Badge counts ──────────────────────────────────────────────────────────
+    // Reservations: pending confirmations + return requests
+    final resCount = app.reservations
+        .where((r) =>
+            r.status == 'pending_confirm' ||
+            r.status == 'return_requested')
+        .length;
+
+    // Rooms: students who pressed "Keldim" and await librarian confirmation
+    final arrivedCount = app.seatBookings
+        .where((b) => b.status == 'arrived')
+        .length;
+
+    // Home: unread notifications
+    final homeCount = app.unreadCount;
+
     final screens = [
       LibDashboardScreen(onNavigate: _goTo),
       const LibBooksScreen(),
-      const LibReservationsScreen(),
+      LibReservationsScreen(
+        key: ValueKey('lib-res-$_reservationNavSeed'),
+        initialFilter: _reservationInitialFilter,
+      ),
       const LibRoomsScreen(),
       const LibAnnouncementsScreen(),
       const LibMarketScreen(),
@@ -93,15 +123,79 @@ class _LibrarianMainState extends State<LibrarianMain> {
         indicatorColor: AppColors.accent.withOpacity(0.2),
         labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
         destinations: [
-          NavigationDestination(icon: const Icon(Icons.dashboard_outlined),    selectedIcon: const Icon(Icons.dashboard_rounded),    label: s.navHome),
+          NavigationDestination(
+            icon: _NavBadge(icon: const Icon(Icons.dashboard_outlined),    count: homeCount),
+            selectedIcon: _NavBadge(icon: const Icon(Icons.dashboard_rounded), count: homeCount),
+            label: s.navHome,
+          ),
           NavigationDestination(icon: const Icon(Icons.menu_book_outlined),    selectedIcon: const Icon(Icons.menu_book_rounded),    label: s.navBooks),
-          NavigationDestination(icon: const Icon(Icons.bookmark_outline),      selectedIcon: const Icon(Icons.bookmark_rounded),     label: s.navReservations),
-          NavigationDestination(icon: const Icon(Icons.meeting_room_outlined), selectedIcon: const Icon(Icons.meeting_room_rounded), label: s.navRooms),
+          NavigationDestination(
+            icon: _NavBadge(icon: const Icon(Icons.bookmark_outline),      count: resCount),
+            selectedIcon: _NavBadge(icon: const Icon(Icons.bookmark_rounded),  count: resCount),
+            label: s.navReservations,
+          ),
+          NavigationDestination(
+            icon: _NavBadge(icon: const Icon(Icons.meeting_room_outlined), count: arrivedCount),
+            selectedIcon: _NavBadge(icon: const Icon(Icons.meeting_room_rounded), count: arrivedCount),
+            label: s.navRooms,
+          ),
           NavigationDestination(icon: const Icon(Icons.campaign_outlined),     selectedIcon: const Icon(Icons.campaign_rounded),     label: s.navNews),
           NavigationDestination(icon: const Icon(Icons.storefront_outlined),   selectedIcon: const Icon(Icons.storefront_rounded),   label: s.navMarket),
           NavigationDestination(icon: const Icon(Icons.settings_outlined),     selectedIcon: const Icon(Icons.settings_rounded),     label: s.navSettings),
         ],
       ),
     ));
+  }
+}
+
+// ── Nav badge widget ──────────────────────────────────────────────────────────
+
+class _NavBadge extends StatelessWidget {
+  final Widget icon;
+  final int count;
+  const _NavBadge({required this.icon, required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    if (count == 0) return icon;
+    final label = count > 99 ? '99+' : count > 9 ? '9+' : '$count';
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        icon,
+        Positioned(
+          right: -6,
+          top: -5,
+          child: Container(
+            constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+            decoration: BoxDecoration(
+              color: AppColors.red,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.red.withOpacity(0.45),
+                  blurRadius: 6,
+                ),
+              ],
+            ),
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 9,
+                fontWeight: FontWeight.w900,
+                height: 1.3,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }

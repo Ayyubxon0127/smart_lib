@@ -6,6 +6,7 @@ import '../../widgets/common_widgets.dart';
 import '../../constants.dart';
 import '../../l10n.dart';
 import 'books_screen.dart';
+import 'book_detail_page.dart';
 
 class RecommendedBooksScreen extends StatelessWidget {
   const RecommendedBooksScreen({super.key});
@@ -118,9 +119,7 @@ class _RecommendedBookCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final app       = context.watch<AppProvider>();
-    final s         = S.of(context);
-    final available = book.available > 0;
+    final app = context.watch<AppProvider>();
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -193,16 +192,23 @@ class _RecommendedBookCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 5),
-                  Row(
+                  Wrap(
+                    spacing: 4,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       if (book.rating > 0) ...[
-                        const Icon(Icons.star_rounded,
-                            size: 11, color: Colors.amber),
-                        const SizedBox(width: 2),
-                        Text(book.rating.toStringAsFixed(1),
-                            style: const TextStyle(
-                                fontSize: 10, fontWeight: FontWeight.w700)),
-                        const SizedBox(width: 6),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.star_rounded,
+                                size: 11, color: Colors.amber),
+                            const SizedBox(width: 2),
+                            Text(book.rating.toStringAsFixed(1),
+                                style: const TextStyle(
+                                    fontSize: 10, fontWeight: FontWeight.w700)),
+                          ],
+                        ),
                       ],
                       StatusBadge(
                         label: book.category,

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../constants.dart';
 import '../../l10n.dart';
 import '../../models/book_market_model.dart';
 import '../../providers/app_provider.dart';
 import '../../widgets/common_widgets.dart';
+import '../student/market_listing_card.dart' show marketAgeBadge, marketFmtDate;
 
 class LibMarketScreen extends StatefulWidget {
   const LibMarketScreen({super.key});
@@ -67,51 +69,6 @@ class _LibMarketScreenState extends State<LibMarketScreen> {
         onRefresh: () => app.fetchMarketItems(),
         child: Column(
           children: [
-            // ── Stats row ────────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: Row(
-                children: [
-                  _StatPill(
-                      label: "Jami",
-                      value: '$totalCount',
-                      color: AppColors.blue),
-                  const SizedBox(width: 8),
-                  _StatPill(
-                      label: "Mavjud",
-                      value: '$availableCount',
-                      color: AppColors.green),
-                  const SizedBox(width: 8),
-                  _StatPill(
-                      label: "Sotildi",
-                      value: '$soldCount',
-                      color: Colors.grey),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Row(
-                children: [
-                  _StatPill(
-                      label: s.marketTypeSell,
-                      value: '$sellCount',
-                      color: AppColors.accent),
-                  const SizedBox(width: 8),
-                  _StatPill(
-                      label: s.marketTypeRent,
-                      value: '$rentCount',
-                      color: AppColors.blue),
-                  const SizedBox(width: 8),
-                  _StatPill(
-                      label: s.marketTypeFree,
-                      value: '$freeCount',
-                      color: AppColors.green),
-                ],
-              ),
-            ),
-            const SizedBox(height: 10),
-
             // ── Search ───────────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -252,6 +209,7 @@ class _AdminMarketTile extends StatelessWidget {
     final s = S.of(context);
     final (typeColor, typeLabel) = _typeInfo(item.type);
     final isSold = item.status == 'sold';
+    final ageBadge = marketAgeBadge(item.createdAt);
 
     return AppCard(
       padding: const EdgeInsets.all(12),
@@ -283,6 +241,8 @@ class _AdminMarketTile extends StatelessWidget {
                           : s.marketStatusAvailable,
                       color: isSold ? Colors.grey : AppColors.green,
                     ),
+                    if (ageBadge != null)
+                      _Pill(label: ageBadge.$1, color: ageBadge.$2),
                     if (item.category.isNotEmpty)
                       _Pill(
                           label: item.category,
@@ -343,8 +303,26 @@ class _AdminMarketTile extends StatelessWidget {
                         size: 13, color: Colors.white38),
                     const SizedBox(width: 3),
                     GestureDetector(
-                      onTap: () {
-                        Clipboard.setData(
+                      onTap: () async {
+                        final uri = Uri.parse('tel:${item.contactPhone}');
+                        bool launched = false;
+                        try {
+                          launched = await launchUrl(uri);
+                        } catch (_) {}
+                        if (!launched && context.mounted) {
+                          await Clipboard.setData(
+                              ClipboardData(text: item.contactPhone));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(s.phoneCopied),
+                              backgroundColor: AppColors.blue,
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        }
+                      },
+                      onLongPress: () async {
+                        await Clipboard.setData(
                             ClipboardData(text: item.contactPhone));
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
@@ -515,7 +493,7 @@ class _AdminSearchBar extends StatelessWidget {
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkCard : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.darkBorder),
+        border: Border.all(color: isDark ? AppColors.darkBorder : const Color(0xFFE2E8F0)),
       ),
       child: TextField(
         controller: controller,
@@ -558,7 +536,9 @@ class _FilterChip extends StatelessWidget {
       required this.onTap});
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return GestureDetector(
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 160),
@@ -572,7 +552,7 @@ class _FilterChip extends StatelessWidget {
             border: Border.all(
               color: selected
                   ? color
-                  : Colors.white.withOpacity(0.15),
+                  : (isDark ? Colors.white.withOpacity(0.15) : Colors.black.withOpacity(0.08)),
               width: selected ? 1.5 : 1,
             ),
           ),
@@ -582,11 +562,12 @@ class _FilterChip extends StatelessWidget {
               fontSize: 12,
               fontWeight:
                   selected ? FontWeight.w700 : FontWeight.w500,
-              color: selected ? color : Colors.white60,
+              color: selected ? color : (isDark ? Colors.white60 : Colors.black54),
             ),
           ),
         ),
       );
+  }
 }
 
 class _MarketImage extends StatelessWidget {
@@ -610,14 +591,19 @@ class _MarketImage extends StatelessWidget {
     return _placeholder();
   }
 
-  Widget _placeholder() => Container(
-        width: width,
-        height: height,
-        color: AppColors.darkSurface,
-        child: const Center(
-          child: Icon(Icons.menu_book_rounded,
-              color: Colors.white24, size: 22),
-        ),
+  Widget _placeholder() => Builder(
+        builder: (context) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          return Container(
+            width: width,
+            height: height,
+            color: isDark ? AppColors.darkSurface : const Color(0xFFF4F6FA),
+            child: const Center(
+              child: Icon(Icons.menu_book_rounded,
+                  color: Colors.white24, size: 22),
+            ),
+          );
+        },
       );
 }
 

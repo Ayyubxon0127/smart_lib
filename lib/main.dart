@@ -11,6 +11,7 @@ import 'screens/student/student_main.dart';
 import 'screens/librarian/librarian_main.dart';
 import 'services/notification_service.dart';
 import 'services/fcm_service.dart';
+import 'screens/splash_screen.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -41,13 +42,11 @@ class SmartKutubxonaApp extends StatelessWidget {
             debugShowCheckedModeBanner: false,
             navigatorKey: navigatorKey,
             locale: Locale(app.lang),
-            themeMode: app.useSystemTheme
-                ? ThemeMode.system
-                : (app.isDark ? ThemeMode.dark : ThemeMode.light),
+            themeMode: app.isDark ? ThemeMode.dark : ThemeMode.light,
             theme: _buildTheme(Brightness.light),
             darkTheme: _buildTheme(Brightness.dark),
             home: !app.initialized
-                ? const Scaffold(body: Center(child: CircularProgressIndicator()))
+                ? const SplashScreen()
                 : app.currentUser == null
                 ? const LoginScreen()
                 : app.role == 'librarian'

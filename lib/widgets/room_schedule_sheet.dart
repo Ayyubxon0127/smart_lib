@@ -74,7 +74,12 @@ class _RoomScheduleSheetState extends State<RoomScheduleSheet> {
     final app = context.read<AppProvider>();
     final s = S.read(context);
     final err = await app.bookSeat(
-        widget.room.id, widget.room.name, _selectedDate, start, end);
+      roomId: widget.room.id,
+      roomName: widget.room.name,
+      date: _selectedDate,
+      startTime: start,
+      endTime: end,
+    );
     if (!mounted) return;
     if (err != null) {
       ScaffoldMessenger.of(context).showSnackBar(

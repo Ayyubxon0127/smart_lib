@@ -43,15 +43,23 @@ class AppCard extends StatelessWidget {
   final EdgeInsets? padding;
   final VoidCallback? onTap;
   final Color? borderColor;
+  final Color? backgroundColor;
 
-  const AppCard({super.key, required this.child, this.padding, this.onTap, this.borderColor});
+  const AppCard({
+    super.key,
+    required this.child,
+    this.padding,
+    this.onTap,
+    this.borderColor,
+    this.backgroundColor,
+  });
 
   @override
   Widget build(BuildContext context) {
     final card = Container(
       padding: padding ?? const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
+        color: backgroundColor ?? Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: borderColor ?? Theme.of(context).dividerColor.withOpacity(0.5)),
       ),
@@ -78,7 +86,10 @@ class StatusBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: color.withOpacity(0.4)),
       ),
-      child: Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w800)),
+      child: Text(label,
+          style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w800),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis),
     );
   }
 }

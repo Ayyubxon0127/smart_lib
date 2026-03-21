@@ -4,6 +4,7 @@ import '../providers/app_provider.dart';
 import 'student/student_main.dart';
 import '../constants.dart';
 import '../widgets/common_widgets.dart';
+import '../widgets/app_logo.dart';
 import '../l10n.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -27,8 +28,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String  _degree    = 'bakalavr';
   String? _faculty;
   String? _direction;
-  String  _group     = '';
-
   final _groupCtrl   = TextEditingController();
 
   @override
@@ -114,6 +113,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                   const SizedBox(width: 16),
+                  const AppLogo(size: 40),
+                  const SizedBox(width: 12),
                   Text(s.register,
                       style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
                 ],
